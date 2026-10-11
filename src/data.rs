@@ -363,6 +363,7 @@ pub const CAPTAIN_NAMES: &[&str] = &[
 
 pub struct Expedition {
     pub name: &'static str,
+    pub leader: &'static str,
     pub year: i32,
     pub era: usize,
     pub nation: Nation,
@@ -376,6 +377,7 @@ pub struct Expedition {
 pub const EXPEDITIONS: [Expedition; 6] = [
     Expedition {
         name: "Francis Drake's raid (1573)",
+        leader: "Francis Drake",
         year: 1573,
         era: 0,
         nation: Nation::England,
@@ -387,6 +389,7 @@ pub const EXPEDITIONS: [Expedition; 6] = [
     },
     Expedition {
         name: "Piet Heyn and the Silver Fleet (1628)",
+        leader: "Piet Heyn",
         year: 1628,
         era: 2,
         nation: Nation::Holland,
@@ -398,6 +401,7 @@ pub const EXPEDITIONS: [Expedition; 6] = [
     },
     Expedition {
         name: "L'Olonnais sacks Maracaibo (1666)",
+        leader: "Francois L'Olonnais",
         year: 1666,
         era: 4,
         nation: Nation::France,
@@ -409,6 +413,7 @@ pub const EXPEDITIONS: [Expedition; 6] = [
     },
     Expedition {
         name: "Henry Morgan at Porto Bello (1668)",
+        leader: "Henry Morgan",
         year: 1668,
         era: 4,
         nation: Nation::England,
@@ -420,6 +425,7 @@ pub const EXPEDITIONS: [Expedition; 6] = [
     },
     Expedition {
         name: "Baron de Pointis at Cartagena (1697)",
+        leader: "Baron de Pointis",
         year: 1697,
         era: 5,
         nation: Nation::France,
@@ -431,6 +437,7 @@ pub const EXPEDITIONS: [Expedition; 6] = [
     },
     Expedition {
         name: "De Graaf and Van Hoorn at Vera Cruz (1683)",
+        leader: "Laurens de Graaf",
         year: 1683,
         era: 5,
         nation: Nation::France,

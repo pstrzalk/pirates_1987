@@ -759,6 +759,16 @@ impl World {
             msgs.push("You feel the weight of your years. Perhaps it is time to retire...".into());
         }
 
+        // A new governor may offer amnesty to those his nation hates.
+        for n in NATIONS {
+            if self.player.standing[n.idx()] < -25 && chance(0.03) {
+                self.player.standing[n.idx()] = -10;
+                let s = format!("A new {} governor offers amnesty to all privateers for past offenses.", n.adj());
+                self.add_news(s.clone());
+                msgs.push(s);
+            }
+        }
+
         // Standing slowly drifts back toward neutral.
         for s in self.player.standing.iter_mut() {
             if *s < -10 {

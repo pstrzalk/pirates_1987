@@ -136,8 +136,7 @@ impl Title {
                     self.goto(Step::Main);
                 } else {
                     let e = &EXPEDITIONS[choice];
-                    let leader = e.name.split(['\'', ' ']).take(2).collect::<Vec<_>>().join(" ");
-                    return Some(Action::NewGame(e.era, e.year, e.nation, leader, Difficulty::Adventurer, Skill::Gunnery, Some(choice)));
+                    return Some(Action::NewGame(e.era, e.year, e.nation, e.leader.to_string(), Difficulty::Adventurer, Skill::Gunnery, Some(choice)));
                 }
             }
             Step::Era => {

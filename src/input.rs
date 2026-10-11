@@ -185,7 +185,7 @@ impl Script {
             self.wait -= 1;
             return inp;
         }
-        while self.idx < self.cmds.len() {
+        if self.idx < self.cmds.len() {
             let cmd = &self.cmds[self.idx];
             self.idx += 1;
             match cmd {
