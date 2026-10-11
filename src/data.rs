@@ -101,17 +101,6 @@ pub enum ShipKind {
     WarGalleon,
 }
 
-pub const SHIP_KINDS: [ShipKind; 9] = [
-    ShipKind::Sloop,
-    ShipKind::Pinnace,
-    ShipKind::Barque,
-    ShipKind::Fluyt,
-    ShipKind::Merchantman,
-    ShipKind::Frigate,
-    ShipKind::TradeGalleon,
-    ShipKind::FastGalleon,
-    ShipKind::WarGalleon,
-];
 
 pub struct ShipSpec {
     pub name: &'static str,

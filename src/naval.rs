@@ -627,6 +627,7 @@ impl NavalBattle {
 
     fn update_balls(&mut self, dt: f32, allow_hits: bool) {
         let mut events: Vec<String> = vec![];
+        let (mut struck, mut splashed) = (false, false);
         let mut i = 0;
         while i < self.balls.len() {
             let b = &mut self.balls[i];
@@ -642,6 +643,7 @@ impl NavalBattle {
                                 events.push(hit_text("Enemy", k, g));
                             }
                             self.parts.push(Particle { pos: b.pos, vel: Vec2::ZERO, life: 0.35, max: 0.35, kind: PKind::Flash });
+                    struck = true;
                             remove = true;
                         }
                     } else if let Some(f) = self.fort.as_mut() {
@@ -657,6 +659,7 @@ impl NavalBattle {
                                 events.push(format!("A fort gun is silenced! ({} left)", f.guns));
                             }
                             self.parts.push(Particle { pos: b.pos, vel: Vec2::ZERO, life: 0.35, max: 0.35, kind: PKind::Flash });
+                    struck = true;
                             remove = true;
                         }
                     }
@@ -666,6 +669,7 @@ impl NavalBattle {
                         events.push(hit_text("We are hit", k, g));
                     }
                     self.parts.push(Particle { pos: b.pos, vel: Vec2::ZERO, life: 0.35, max: 0.35, kind: PKind::Flash });
+                    struck = true;
                     remove = true;
                 }
             }
@@ -673,6 +677,7 @@ impl NavalBattle {
             if !remove && b.life <= 0.0 {
                 if !(self.fort.is_some() && in_land(b.pos, 0.0)) {
                     self.parts.push(Particle { pos: b.pos, vel: Vec2::ZERO, life: 0.6, max: 0.6, kind: PKind::Splash });
+                    splashed = true;
                 }
                 remove = true;
             }
@@ -684,6 +689,11 @@ impl NavalBattle {
         }
         if let Some(s) = events.pop() {
             self.event(s);
+        }
+        if struck {
+            crate::sound::play(crate::sound::Sfx::Hit);
+        } else if splashed {
+            crate::sound::play(crate::sound::Sfx::Splash);
         }
     }
 
@@ -1033,6 +1043,7 @@ fn apply_hit(s: &mut Ship, weight: f32) -> (i32, bool) {
 }
 
 fn fire_broadside(s: &Ship, side: f32, spread: f32, owner: u8, balls: &mut Vec<Ball>, parts: &mut Vec<Particle>) {
+    crate::sound::play(crate::sound::Sfx::Cannon);
     let guns_side = (s.guns as f32 / 2.0).ceil().max(1.0);
     let n = guns_side.min(10.0) as i32;
     let weight = guns_side / n as f32;

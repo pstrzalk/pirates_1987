@@ -180,7 +180,7 @@ impl Market {
         ui::text(&format!("Cargo: {} / {} tons", pl.cargo_used(), pl.cargo_capacity()), 200.0, y, 14.0, INK);
         let gun_cap: i32 = pl.ships.iter().map(|s| s.kind.spec().max_guns).sum();
         ui::text(&format!("Guns: {} / {}", pl.total_guns(), gun_cap), 420.0, y, 14.0, INK);
-        let days = if pl.crew > 0 { pl.food * 300 / pl.crew } else { 999 };
+        let days = if pl.crew > 0 { pl.food * 100 / pl.crew } else { 999 };
         ui::text(&format!("Food lasts about {} days for {} men.", days, pl.crew), 70.0, y + 22.0, 12.0, BROWN);
         ui::text(&self.msg, 70.0, y + 42.0, 12.0, RED);
         ui::text("Up/Down select   Right/B buy   Left/S sell   Shift x10   Esc leave", 70.0, 362.0, 11.0, BROWN);

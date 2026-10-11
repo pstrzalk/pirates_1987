@@ -451,6 +451,7 @@ impl LandBattle {
     }
 
     fn volley(&mut self, si: usize, ti: usize) {
+        crate::sound::play(crate::sound::Sfx::Musket);
         let (s, t) = (&self.groups[si], &self.groups[ti]);
         let d = dist((s.x, s.y), (t.x, t.y));
         let range_f = (1.0 - d / (FIRE_RANGE * 1.6)).max(0.1);

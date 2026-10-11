@@ -18,7 +18,18 @@ enum Step {
     Name,
     Difficulty,
     Skill,
+    Help,
 }
+
+const HELP: &[&str] = &[
+    "Win fame and fortune as a privateer in the Caribbean. Capture ships, sack towns, trade, court governors' daughters, find your lost family and buried treasure -- then retire rich and honored.",
+    "SAILING: Left/Right steer. Your speed depends on the wind (compass, top right) and your ships' rigging: square-riggers like the wind behind them, sloops sail well across it. Deep-draft ships may run aground in shallows (light blue). M shows the map, I your status, D digs for treasure near the shore, F sails faster, Space pauses, Esc opens the menu (save/load).",
+    "TOWNS: Sail into a town to enter. The Governor grants letters of marque, titles and land for service against his enemies. Recruit men and hear rumors in the Tavern, trade at the Merchant, repair or sell ships at the Shipwright. Divide the Plunder to pay your crew -- most will then leave -- and to retire.",
+    "SHIPS: Approach a ship to meet it. In battle, Left/Right turn, Up/Down set full or battle sail, Space fires a broadside. Ram the enemy to board, then win the sword fight to take her.",
+    "FENCING: Up/Down change your guard (high/middle/low), Space attacks at that height, Left leaps back. Parry by matching his attack height; drive him back to win.",
+    "TOWN ASSAULTS: Attack hostile towns from the sea (sail past the fort to the quay) or march overland: Tab selects a group, arrows move, Space fires. Reach the town gate to take it.",
+    "Your crew grows unhappy over time unless they see gold. Keep food aboard, divide the plunder regularly, and watch your health as the years pass.",
+];
 
 pub struct Title {
     step: Step,
@@ -42,6 +53,7 @@ impl Title {
             t: 0.0,
         };
         t.goto(Step::Main);
+        crate::sound::play(crate::sound::Sfx::Theme);
         t
     }
 
@@ -50,8 +62,8 @@ impl Title {
             Step::Main => {
                 let has_save = std::path::Path::new(SAVE_FILE).exists();
                 Menu::with_enabled(
-                    vec!["Start a New Career".into(), "Command a Famous Expedition".into(), "Continue a Saved Game".into(), "Quit".into()],
-                    vec![true, true, has_save, true],
+                    vec!["Start a New Career".into(), "Command a Famous Expedition".into(), "Continue a Saved Game".into(), "How to Play".into(), "Quit".into()],
+                    vec![true, true, has_save, true, true],
                 )
             }
             Step::Expedition => {
@@ -65,7 +77,7 @@ impl Title {
                 m
             }
             Step::Nation => Menu::new(ERAS[self.era].nations.iter().map(|n| format!("{} privateer", n.adj())).collect()),
-            Step::Name => Menu::new(vec![]),
+            Step::Name | Step::Help => Menu::new(vec![]),
             Step::Difficulty => {
                 let mut m = Menu::new(
                     [Difficulty::Apprentice, Difficulty::Journeyman, Difficulty::Adventurer, Difficulty::Swashbuckler]
@@ -93,6 +105,12 @@ impl Title {
             }
             return None;
         }
+        if let Step::Help = self.step {
+            if inp.cancel() || inp.confirm() {
+                self.goto(Step::Main);
+            }
+            return None;
+        }
         if inp.cancel() {
             match self.step {
                 Step::Main => {}
@@ -100,7 +118,7 @@ impl Title {
                 Step::Nation => self.goto(Step::Era),
                 Step::Difficulty => self.goto(Step::Name),
                 Step::Skill => self.goto(Step::Difficulty),
-                Step::Name => {}
+                Step::Name | Step::Help => {}
             }
             return None;
         }
@@ -110,6 +128,7 @@ impl Title {
                 0 => self.goto(Step::Era),
                 1 => self.goto(Step::Expedition),
                 2 => return Some(Action::LoadGame),
+                3 => self.goto(Step::Help),
                 _ => return Some(Action::QuitGame),
             },
             Step::Expedition => {
@@ -144,7 +163,7 @@ impl Title {
                     None,
                 ));
             }
-            Step::Name => {}
+            Step::Name | Step::Help => {}
         }
         None
     }
@@ -175,6 +194,18 @@ impl Title {
 
         let (px, py, pw) = (300.0, 110.0, 320.0);
         match self.step {
+            Step::Help => {
+                ui::parchment(20.0, 20.0, W - 40.0, H - 40.0);
+                ui::text("How to Play", 36.0, 30.0, 18.0, RED);
+                let mut y = 56.0;
+                for l in HELP {
+                    for w in ui::wrap(l, 11.0, W - 80.0) {
+                        ui::text(&w, 36.0, y, 11.0, INK);
+                        y += 13.0;
+                    }
+                    y += 3.0;
+                }
+            }
             Step::Name => {
                 ui::parchment(px, py, pw, 120.0);
                 ui::text("What is your name, Captain?", px + 16.0, py + 16.0, 14.0, INK);
@@ -191,7 +222,7 @@ impl Title {
                     Step::Nation => ("Sail under which flag?", format!("You will begin in a {} port with a letter of introduction to its governor.", ERAS[self.era].nations[self.menu.sel].adj())),
                     Step::Difficulty => ("Difficulty level", ["Gentle foes, but a small share of the plunder.", "A fair challenge.", "Skilled enemies; a larger share.", "Deadly enemies; the captain's share is greatest."][self.menu.sel].to_string()),
                     Step::Skill => ("Special ability", Skill::from_idx(self.menu.sel).desc().to_string()),
-                    Step::Name => unreachable!(),
+                    Step::Name | Step::Help => unreachable!(),
                 };
                 let mh = self.menu.height(13.0);
                 let desc_lines = if desc.is_empty() { vec![] } else { ui::wrap(&desc, 11.0, pw - 30.0) };

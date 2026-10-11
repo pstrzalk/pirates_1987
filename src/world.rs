@@ -244,18 +244,6 @@ pub enum Role {
     Smuggler,
 }
 
-impl Role {
-    pub fn desc(self) -> &'static str {
-        match self {
-            Role::Merchant => "merchant",
-            Role::Warship => "warship",
-            Role::Pirate => "pirate",
-            Role::Hunter => "pirate hunter",
-            Role::TreasureFleet => "treasure galleon",
-            Role::Smuggler => "smuggler",
-        }
-    }
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AiShip {
@@ -581,8 +569,8 @@ impl World {
         pl.days_since_divide += days;
         pl.age += days / 360.0;
 
-        // Food: one ton feeds 100 men for ~3 days.
-        self.food_acc += pl.crew as f32 * days / 300.0;
+        // Food: one ton feeds 100 men for a day.
+        self.food_acc += pl.crew as f32 * days / 100.0;
         let whole = self.food_acc.floor();
         self.food_acc -= whole;
         pl.food = (pl.food - whole as i32).max(0);
@@ -1004,13 +992,13 @@ impl World {
     }
 
     /// Spawn warships hunting the player when a nation hates them.
-    fn maybe_spawn_hunter(&mut self, geo: &Geo) {
+    fn maybe_spawn_hunter(&mut self, geo: &Geo, days: f32) {
         let hunters = self.ships.iter().filter(|s| s.role == Role::Hunter).count();
         if hunters >= 2 {
             return;
         }
         let worst = NATIONS.iter().copied().min_by_key(|n| self.player.standing[n.idx()]).unwrap();
-        if self.player.standing[worst.idx()] > -40 || !chance(0.002) {
+        if self.player.standing[worst.idx()] > -40 || !chance(0.04 * days) {
             return;
         }
         let pp = v(self.player.pos);
@@ -1047,7 +1035,7 @@ impl World {
                 Role::Warship => player_hated[s.nation.idx()],
                 _ => false,
             };
-            if aggressive && dist < 3.0 && s.ignore <= 0.0 && s.chase <= 0.0 && chance(0.05 * days * 30.0) {
+            if aggressive && dist < 3.0 && s.ignore <= 0.0 && s.chase <= 0.0 && chance(0.35 * days) {
                 s.chase = 6.0;
             }
             let target = if s.chase > 0.0 && s.ignore <= 0.0 {
@@ -1111,7 +1099,7 @@ impl World {
         if n < wanted && chance(0.3 * days) {
             self.spawn_ship(geo);
         }
-        self.maybe_spawn_hunter(geo);
+        self.maybe_spawn_hunter(geo, days);
     }
 
     // ---------------------------------------------------------- reputation
@@ -1176,9 +1164,6 @@ impl World {
         }
     }
 
-    pub fn era_year_desc(&self) -> String {
-        format!("{} ({})", ERAS[self.era].title, self.start_year)
-    }
 
     /// Final score for retirement.
     pub fn score(&self) -> (i32, Vec<(String, i32)>) {

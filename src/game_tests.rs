@@ -7,7 +7,7 @@ use crate::naval::{NavalOutcome, NavalOutcomeKind};
 
 fn app_with(era: usize, nation: Nation) -> App {
     macroquad::rand::srand(42);
-    let mut a = App { geo: Geo::new(), world: None, screen: Screen::Title(Title::new()), pending: None, prize: None, sneaked: None, quit: false };
+    let mut a = App { geo: Geo::new(), world: None, screen: Screen::Title(Title::new()), pending: None, prize: None, sneaked: None, queued_duel: None, quit: false };
     a.handle(Action::NewGame(era, ERAS[era].year, nation, "Tester".into(), Difficulty::Journeyman, Skill::Fencing, None));
     a
 }
@@ -70,7 +70,7 @@ fn every_era_and_nation_can_start() {
 fn expeditions_start() {
     for e in 0..EXPEDITIONS.len() {
         macroquad::rand::srand(7);
-        let mut a = App { geo: Geo::new(), world: None, screen: Screen::Title(Title::new()), pending: None, prize: None, sneaked: None, quit: false };
+        let mut a = App { geo: Geo::new(), world: None, screen: Screen::Title(Title::new()), pending: None, prize: None, sneaked: None, queued_duel: None, quit: false };
         let ex = &EXPEDITIONS[e];
         a.handle(Action::NewGame(ex.era, ex.year, ex.nation, "X".into(), Difficulty::Adventurer, Skill::Gunnery, Some(e)));
         let w = a.world.as_ref().unwrap();
@@ -219,6 +219,9 @@ fn sneak_in_eventually_fights_or_enters() {
     a.world.as_mut().unwrap().player.standing[0] = -80;
     for _ in 0..10 {
         a.handle(Action::Sneak(t));
+        if a.queued_duel.is_some() {
+            a.handle(Action::BeginDuel);
+        }
         match &a.screen {
             Screen::Duel(_) => {
                 a.on_duel(DuelOutcome { won: true, player_crew: 0, enemy_crew: 0, wounded: false });

@@ -188,9 +188,9 @@ pub fn draw_picture(pic: &Picture, x: f32, y: f32, w: f32, h: f32, world: Option
             ui::text_shadow(&format!("{} {}", nation.adj(), kind.name()), x + 10.0, y + 8.0, 16.0, WHITE);
         }
         Picture::Town(ti) => {
-            let (nation, size, name) = match world {
-                Some(w) => (w.towns[*ti].nation.unwrap_or(Nation::Pirate), TOWNS[w.towns[*ti].def].size, w.towns[*ti].name()),
-                None => (Nation::Spain, 3, TOWNS[*ti].name),
+            let (nation, size, name, fort) = match world {
+                Some(w) => (w.towns[*ti].nation.unwrap_or(Nation::Pirate), TOWNS[w.towns[*ti].def].size, w.towns[*ti].name(), w.towns[*ti].fort),
+                None => (Nation::Spain, 3, TOWNS[*ti].name, 1),
             };
             sky(x, y, w, h * 0.5, Color::new(0.4, 0.6, 1.0, 1.0), Color::new(0.85, 0.9, 1.0, 1.0));
             // Hills behind.
@@ -219,19 +219,28 @@ pub fn draw_picture(pic: &Picture, x: f32, y: f32, w: f32, h: f32, world: Option
                 rect(cx + 7.0, y + h * 0.7 - 80.0, 2.0, 10.0, BLACK);
                 rect(cx + 4.0, y + h * 0.7 - 77.0, 8.0, 2.0, BLACK);
             }
-            // Fort on the right.
+            // Fort on the right (bigger for a fortress), or just a flagpole.
             let fx = x + w * 0.74;
             let fy = y + h * 0.72;
-            let stone = Color::new(0.6, 0.58, 0.52, 1.0);
-            rect(fx, fy - 40.0, 120.0, 40.0, stone);
-            for k in 0..8 {
-                rect(fx + k as f32 * 15.0, fy - 46.0, 9.0, 6.0, stone);
-            }
-            rect(fx + 40.0, fy - 62.0, 30.0, 22.0, stone);
-            draw_line(fx + 55.0, fy - 62.0, fx + 55.0, fy - 85.0, 2.0, BLACK);
-            draw_flag(nation, fx + 56.0, fy - 85.0, 22.0, 14.0);
-            for k in 0..4 {
-                rect(fx + 10.0 + k as f32 * 28.0, fy - 25.0, 8.0, 5.0, BLACK);
+            if fort > 0 {
+                let fw = if fort >= 2 { 150.0 } else { 100.0 };
+                let fh = if fort >= 2 { 50.0 } else { 36.0 };
+                let stone = Color::new(0.6, 0.58, 0.52, 1.0);
+                rect(fx, fy - fh, fw, fh, stone);
+                let merlons = (fw / 15.0) as i32;
+                for k in 0..merlons {
+                    rect(fx + k as f32 * 15.0, fy - fh - 6.0, 9.0, 6.0, stone);
+                }
+                let tx = fx + fw / 2.0 - 15.0;
+                rect(tx, fy - fh - 22.0, 30.0, 22.0, stone);
+                draw_line(tx + 15.0, fy - fh - 22.0, tx + 15.0, fy - fh - 45.0, 2.0, BLACK);
+                draw_flag(nation, tx + 16.0, fy - fh - 45.0, 22.0, 14.0);
+                for k in 0..(merlons / 2) {
+                    rect(fx + 10.0 + k as f32 * 28.0, fy - fh * 0.6, 8.0, 5.0, BLACK);
+                }
+            } else {
+                draw_line(fx + 40.0, fy, fx + 40.0, fy - 50.0, 2.0, BLACK);
+                draw_flag(nation, fx + 41.0, fy - 50.0, 22.0, 14.0);
             }
             sea_band(x, y + h * 0.72, w, h * 0.28, t * 6.0);
             ship_side(x + w * 0.18, y + h * 0.93, 0.5, ShipKind::Merchantman, nation, true);

@@ -22,7 +22,6 @@ pub const SAVE_FILE: &str = "pirates.sav";
 
 #[derive(Clone, Debug)]
 pub enum Action {
-    Nothing,
     ToSail,
     ToTitle,
     QuitGame,
@@ -42,6 +41,7 @@ pub enum Action {
     InfoScreen(usize),
     InfoSail,
     Encounter(u32, bool),
+    BeginDuel,
     AcceptMarque(usize, Nation),
     Court(usize),
     Propose(usize),
@@ -159,12 +159,14 @@ pub struct App {
     pub prize: Option<AiShip>,
     /// Town the player has sneaked into (restricted access).
     pub sneaked: Option<usize>,
+    /// A duel to start after the current message.
+    pub queued_duel: Option<DuelSetup>,
     pub quit: bool,
 }
 
 impl App {
     pub fn new() -> App {
-        App { geo: Geo::new(), world: None, screen: Screen::Title(Title::new()), pending: None, prize: None, sneaked: None, quit: false }
+        App { geo: Geo::new(), world: None, screen: Screen::Title(Title::new()), pending: None, prize: None, sneaked: None, queued_duel: None, quit: false }
     }
 
     fn w(&mut self) -> &mut World {
@@ -233,7 +235,6 @@ impl App {
 
     pub fn handle(&mut self, a: Action) {
         match a {
-            Action::Nothing => {}
             Action::ToSail => {
                 self.sneaked = None;
                 self.screen = Screen::Sail(Sail::new());
@@ -275,6 +276,10 @@ impl App {
             Action::InfoScreen(t) => self.screen = Screen::Info(Info::new(Action::TownMenu(t))),
             Action::InfoSail => self.screen = Screen::Info(Info::new(Action::ToSail)),
             Action::Encounter(id, attacking) => self.encounter(id, attacking),
+            Action::BeginDuel => match self.queued_duel.take() {
+                Some(setup) => self.screen = Screen::Duel(Duel::new(setup)),
+                None => self.handle(Action::ToSail),
+            },
             Action::AcceptMarque(t, enemy) => {
                 let n = self.w().towns[t].nation.unwrap();
                 let w = self.w();
@@ -358,6 +363,7 @@ impl App {
                 let sink = matches!(a, Action::SinkPrize);
                 if let Some(pz) = self.prize.take() {
                     let w = self.w();
+                    w.trim_to_capacity();
                     if sink {
                         w.player.ships_sunk += 1;
                     }
@@ -378,6 +384,7 @@ impl App {
 
     #[allow(clippy::too_many_arguments)]
     fn new_game(&mut self, era: usize, year: i32, nation: Nation, name: String, diff: Difficulty, skill: Skill, exp: Option<usize>) {
+        crate::sound::stop(crate::sound::Sfx::Theme);
         let ng = NewGame { name, era, year, nation, difficulty: diff, skill, expedition: exp };
         let w = World::new(&self.geo, &ng);
         let start = w.nearest_town(w.player.pos);
@@ -969,9 +976,8 @@ impl App {
                 enemy_skill: self.enemy_skill(0.1),
             };
             self.pending = Some(Pending::SneakFight(t));
-            self.dialog(Dialog::msg("Discovered!", "\"Halt! Who goes there?\" A patrol has spotted you! The captain of the guard draws his sword. You must fight your way out!", Picture::Town(t), Action::Nothing));
-            // Replace Continue's action by starting the duel.
-            self.screen = Screen::Duel(Duel::new(setup));
+            self.queued_duel = Some(setup);
+            self.dialog(Dialog::msg("Discovered!", "\"Halt! Who goes there?\" A patrol has spotted you! The captain of the guard draws his sword. You must fight your way out!", Picture::Town(t), Action::BeginDuel));
         }
     }
 
@@ -981,6 +987,7 @@ impl App {
     }
 
     fn sack_town(&mut self, t: usize, men_left: i32) {
+        crate::sound::play(crate::sound::Sfx::Fanfare);
         let w = self.w();
         w.player.crew = men_left.max(0);
         let town = &mut w.towns[t];
@@ -1254,6 +1261,7 @@ impl App {
     /// The player is captured: lose the purse, spend time in prison, and
     /// start again from the nearest friendly port.
     fn captured(&mut self, captor: Option<Nation>, how: &str) {
+        crate::sound::play(crate::sound::Sfx::Defeat);
         let geo_free;
         let w = self.w();
         let months = gen_range(2, 8);
@@ -1327,6 +1335,7 @@ impl App {
     }
 
     fn capture_prize(&mut self, ai: AiShip, enemy_crew_left: i32) {
+        crate::sound::play(crate::sound::Sfx::Fanfare);
         let geo_pirate = ai.nation == Nation::Pirate;
         let w = self.w();
         w.ships.retain(|s| s.id != ai.id);

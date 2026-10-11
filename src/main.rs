@@ -13,6 +13,7 @@ mod market;
 mod naval;
 mod sail;
 mod title;
+mod sound;
 mod ui;
 mod world;
 
@@ -67,6 +68,7 @@ async fn main() {
     } else {
         macroquad::rand::srand((macroquad::miniquad::date::now() * 1000.0) as u64);
     }
+    sound::init().await;
     let test = std::env::var("PIRATES_TEST").unwrap_or_default();
     let mut screen = match test.as_str() {
         "naval" => TestScreen::Naval(naval::NavalBattle::test_default()),

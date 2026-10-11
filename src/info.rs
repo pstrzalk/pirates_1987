@@ -105,7 +105,7 @@ impl Info {
         let rows = [
             format!("Crew: {} men (room for {}), morale: {}", pl.crew, pl.crew_capacity(), pl.morale_word()),
             format!("Ship's purse: {} pieces of eight ({} months since the last division)", pl.gold, (pl.days_since_divide / 30.0) as i32),
-            format!("Food: {} tons, lasting about {} days", pl.food, if pl.crew > 0 { pl.food * 300 / pl.crew } else { 999 }),
+            format!("Food: {} tons, lasting about {} days", pl.food, if pl.crew > 0 { pl.food * 100 / pl.crew } else { 999 }),
             format!(
                 "Cargo: {} sugar, {} tobacco, {} hides, {} goods ({} / {} tons used)",
                 pl.cargo[0], pl.cargo[1], pl.cargo[2], pl.cargo[3], pl.cargo_used(), pl.cargo_capacity()

@@ -447,6 +447,7 @@ impl Duel {
             att.action = Action::Recover { t: att.weapon.recover() * 1.6 / att.skill.sqrt() };
             self.flashes.push(Flash { x: fx, y: hy, t: 0.25, hit: false });
             self.say(if by_player { "Parried!" } else { "You parry!" });
+            crate::sound::play(crate::sound::Sfx::Clang);
             if by_player && gen_range(0.0, 1.0) < 0.35 + 0.35 * self.enemy.skill {
                 // Riposte: the foe strikes back while you are off balance.
                 self.ai_timer = gen_range(0.02, 0.15);
@@ -454,6 +455,7 @@ impl Duel {
             return;
         }
         // Hit!
+        crate::sound::play(crate::sound::Sfx::Hit);
         let push = att.weapon.push() * (0.85 + 0.15 * att.skill);
         def.hits_taken += 1;
         def.action = Action::Stagger { t: 0.35 };
