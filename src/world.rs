@@ -90,6 +90,8 @@ pub struct Player {
     pub towns_sacked: i32,
     pub duels_won: i32,
     pub fame: i32,
+    #[serde(default)]
+    pub marquis_defeated: bool,
 }
 
 impl Player {
@@ -300,6 +302,9 @@ pub struct World {
     pub retired: bool,
     #[serde(default)]
     pub food_acc: f32,
+    /// Where the evil Marquis de la Montalban resides.
+    #[serde(default)]
+    pub marquis_town: usize,
 }
 
 pub const MONTHS: [&str; 12] = [
@@ -431,6 +436,7 @@ impl World {
             towns_sacked: 0,
             duels_won: 0,
             fame: 0,
+            marquis_defeated: false,
         };
 
         // Lost family members are held in distant towns (mostly Spanish).
@@ -467,7 +473,12 @@ impl World {
             fleet_month: -1,
             retired: false,
             food_acc: 0.0,
+            marquis_town: 0,
         };
+        // The Marquis lives in a large Spanish town (or any large town).
+        let big: Vec<usize> = (0..w.towns.len()).filter(|&i| TOWNS[w.towns[i].def].size >= 3 && w.towns[i].nation.is_some()).collect();
+        let spanish: Vec<usize> = big.iter().copied().filter(|&i| w.towns[i].nation == Some(Nation::Spain)).collect();
+        w.marquis_town = if !spanish.is_empty() { pick(&spanish) } else if !big.is_empty() { pick(&big) } else { 0 };
         // Start in a random month of the year.
         w.day = gen_range(0, 6) as f64 * 30.0 + gen_range(0, 20) as f64;
         w.last_month = w.month_index();
@@ -816,6 +827,30 @@ impl World {
                 if r != Relation::War {
                     // Letters of marque against a former enemy lapse.
                     self.revoke_marques();
+                }
+            }
+        }
+
+        // Nations at war occasionally seize each other's small colonies.
+        if chance(0.06) {
+            let wars: Vec<(Nation, Nation)> = NATIONS.iter().flat_map(|&a| NATIONS.iter().map(move |&b| (a, b)))
+                .filter(|&(a, b)| a != b && self.relation(a, b) == Relation::War)
+                .collect();
+            if !wars.is_empty() {
+                let (att, def) = pick(&wars);
+                let att_towns: Vec<usize> = (0..self.towns.len()).filter(|&i| self.towns[i].nation == Some(att)).collect();
+                let targets: Vec<usize> = (0..self.towns.len())
+                    .filter(|&i| self.towns[i].nation == Some(def) && TOWNS[self.towns[i].def].size <= 2 && i != self.marquis_town)
+                    .filter(|&i| att_towns.iter().any(|&j| v(self.towns[j].pos).distance(v(self.towns[i].pos)) < 6.0))
+                    .collect();
+                if !targets.is_empty() {
+                    let t = pick(&targets);
+                    self.towns[t].nation = Some(att);
+                    self.towns[t].soldiers = 30 + gen_range(0, 30);
+                    self.towns[t].wealth /= 2;
+                    let s = format!("{} forces have captured {} from {}!", att.adj(), self.towns[t].name(), def.name());
+                    self.add_news(s.clone());
+                    msgs.push(format!("News: {s}"));
                 }
             }
         }
@@ -1187,6 +1222,9 @@ impl World {
             },
             wife_pts,
         ));
+        if pl.marquis_defeated {
+            parts.push(("Defeated the evil Marquis de la Montalban".into(), 5));
+        }
         let fam = pl.family_count() as i32;
         parts.push((format!("Family members rescued: {fam} of 4"), fam * 3));
         parts.push((if pl.treasure_found { "Found the lost treasure".into() } else { "Treasure never found".into() }, if pl.treasure_found { 4 } else { 0 }));

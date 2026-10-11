@@ -146,6 +146,7 @@ pub enum Pending {
     Boarding(Box<AiShip>, NavalOutcome),
     FortAssault(usize),
     TownDuel(usize),
+    MarquisDuel(usize),
     LandAssault(usize),
     SneakFight(usize),
 }
@@ -498,11 +499,39 @@ impl App {
                 break;
             }
         }
+        let w = self.w();
+        if w.player.family_count() == 4 && !w.player.marquis_defeated && extra.contains("reunion") {
+            extra.push_str(&format!(" With your whole family together at last, your grandfather reveals that the treacherous Marquis de la Montalban lives in {}. Vengeance awaits!", w.towns[w.marquis_town].name()));
+        }
         if !extra.is_empty() {
             self.message("A Family Reunion", extra, Picture::Family, Action::TownMenu(t));
+        } else if w.player.family_count() == 4 && !w.player.marquis_defeated && w.marquis_town == t {
+            self.marquis_duel(t);
         } else {
             self.town_menu(t);
         }
+    }
+
+    fn marquis_duel(&mut self, t: usize) {
+        let w = self.world.as_ref().unwrap();
+        let setup = DuelSetup {
+            kind: DuelKind::Personal,
+            player_name: w.player.name.clone(),
+            opponent_name: "Marquis de la Montalban".into(),
+            opponent_title: "the betrayer of your family".into(),
+            player_crew: 0,
+            enemy_crew: 0,
+            player_skill: w.player.fencing_skill(),
+            enemy_skill: self.enemy_skill(0.3),
+        };
+        self.queued_duel = Some(setup);
+        self.pending = Some(Pending::MarquisDuel(t));
+        self.message(
+            "The Marquis!",
+            format!("In the plaza of {} you come face to face with the Marquis de la Montalban, the man who destroyed your family. He sneers and draws his blade. \"So, the whelp has grown teeth!\"", w.towns[t].name()),
+            Picture::Town(t),
+            Action::BeginDuel,
+        );
     }
 
     fn town_menu(&mut self, t: usize) {
@@ -1320,6 +1349,19 @@ impl App {
                     let n = self.world.as_ref().unwrap().towns[t].nation;
                     self.w().player.crew = o.player_crew;
                     self.captured(n, "The commandant's men drive you back and you are taken prisoner.");
+                }
+            }
+            Pending::MarquisDuel(t) => {
+                let w = self.w();
+                if o.won {
+                    w.player.marquis_defeated = true;
+                    w.player.wealth += 5000;
+                    w.player.fame += 10;
+                    w.add_log("Defeated the Marquis de la Montalban!".into());
+                    crate::sound::play(crate::sound::Sfx::Fanfare);
+                    self.message("Vengeance!", "The Marquis falls to his knees and yields his sword. Stripped of his ill-gotten estates, he is sent to Spain in chains. A reward of 5000 pieces of eight is added to your fortune, and your family's honor is restored!", Picture::Family, Action::TownMenu(t));
+                } else {
+                    self.message("Defeated", "The Marquis disarms you and laughs as you flee. You will have to try again another day.", Picture::Town(t), Action::ToSail);
                 }
             }
             Pending::SneakFight(t) => {

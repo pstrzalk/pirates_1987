@@ -317,7 +317,7 @@ fn treasure_dig() {
     for dy in -4..=4 {
         for dx in -4..=4 {
             let q = tp + vec2(dx as f32 * 0.1, dy as f32 * 0.1);
-            if a.geo.is_water(q.x, q.y) && spot.is_none() {
+            if a.geo.is_water(q.x, q.y) && spot.is_none_or(|s: Vec2| s.distance(tp) > q.distance(tp)) {
                 spot = Some(q);
             }
         }
@@ -329,4 +329,39 @@ fn treasure_dig() {
     sail.update(&inp, 0.016, w, &a.geo);
     assert!(w.player.treasure_found);
     assert!(w.player.gold > gold);
+}
+
+#[test]
+fn marquis_quest() {
+    let mut a = app();
+    let mt = a.world.as_ref().unwrap().marquis_town;
+    {
+        let w = a.world.as_mut().unwrap();
+        w.player.family_found = [true; 4];
+        w.player.family_clue = [true; 4];
+        for s in w.player.standing.iter_mut() {
+            *s = 60;
+        }
+    }
+    a.handle(Action::ArriveTown(mt));
+    assert!(a.queued_duel.is_some());
+    a.handle(Action::BeginDuel);
+    assert!(matches!(a.screen, Screen::Duel(_)));
+    a.on_duel(DuelOutcome { won: true, player_crew: 0, enemy_crew: 0, wounded: false });
+    let w = a.world.as_ref().unwrap();
+    assert!(w.player.marquis_defeated);
+    assert!(w.player.wealth >= 5000);
+}
+
+#[test]
+fn ai_wars_change_towns_over_time() {
+    let mut a = app();
+    let before: Vec<_> = a.world.as_ref().unwrap().towns.iter().map(|t| t.nation).collect();
+    let geo = &a.geo;
+    let w = a.world.as_mut().unwrap();
+    for _ in 0..(360 * 15) {
+        w.advance(geo, 1.0);
+    }
+    let changed = w.towns.iter().zip(&before).filter(|(t, b)| t.nation != **b).count();
+    assert!(changed > 0, "no towns changed hands in 15 years");
 }
