@@ -208,7 +208,7 @@ impl Sail {
         let gy0 = (pgy - cells_h / 2.0).clamp(0.0, geo::GH as f32 - cells_h);
         let tp = geo::TPX as f32;
         draw_texture_ex(
-            &geo.texture,
+            geo.texture(),
             0.0,
             0.0,
             WHITE,
@@ -269,8 +269,8 @@ impl Sail {
             let hull = Color::new(0.4, 0.22, 0.08, 1.0);
             let sail = if s.nation == Nation::Pirate { DGRAY } else { WHITE };
             let scale = s.ship.kind.spec().size;
-            art::ship_top(sc.x, sc.y, -heading_to_screen(s.heading), scale, hull, sail);
-            draw_flag(s.nation, sc.x - 4.0, sc.y - 16.0, 8.0, 5.0);
+            art::ship_top(sc.x, sc.y, -heading_to_screen(s.heading), scale * 1.4, hull, sail);
+            draw_flag(s.nation, sc.x - 5.0, sc.y - 20.0, 10.0, 6.0);
         }
         // Player fleet.
         let pc = to_screen(w.player.pos.0, w.player.pos.1);
@@ -279,9 +279,9 @@ impl Sail {
             let back = vec2(-w.player.heading.cos(), -w.player.heading.sin()) * 10.0 * k as f32;
             let side = vec2(-w.player.heading.sin(), w.player.heading.cos()) * if k % 2 == 0 { 6.0 } else { -6.0 };
             let q = pc + back + side;
-            art::ship_top(q.x, q.y, w.player.heading, 0.7, Color::new(0.35, 0.2, 0.08, 1.0), Color::new(0.9, 0.9, 0.8, 1.0));
+            art::ship_top(q.x, q.y, w.player.heading, 1.0, Color::new(0.35, 0.2, 0.08, 1.0), Color::new(0.9, 0.9, 0.8, 1.0));
         }
-        art::ship_top(pc.x, pc.y, w.player.heading, w.player.flagship().kind.spec().size * 1.1, Color::new(0.5, 0.3, 0.1, 1.0), YELLOW);
+        art::ship_top(pc.x, pc.y, w.player.heading, w.player.flagship().kind.spec().size * 1.6, Color::new(0.5, 0.3, 0.1, 1.0), YELLOW);
         // Wake.
         let back = vec2(-w.player.heading.cos(), -w.player.heading.sin());
         for k in 1..5 {
@@ -339,7 +339,7 @@ impl Sail {
         let pl = &w.player;
         let angle = angle_diff(pl.heading, w.wind_dir);
         let speed = pl.fleet_speed(angle, w.wind_strength);
-        let knots = (speed * 60.0 / 24.0 * 2.0) as i32;
+        let knots = (speed * 8.0).round() as i32;
         ui::text(&w.date_string(), 6.0, y + 6.0, 12.0, YELLOW);
         let near = w.nearest_town(pl.pos);
         let loc = format!("Near {}", w.towns[near].name());
@@ -356,11 +356,13 @@ impl Sail {
         col(420.0, "Hull", format!("{}%", pl.flagship().hull), if pl.flagship().hull < 40 { LRED } else { WHITE });
         col(465.0, "Speed", format!("{knots} kn"), WHITE);
         let shallow = geo.tile_at(pl.pos.0, pl.pos.1) == Tile::Shallow;
+        let mut ix = 6.0;
         if shallow {
-            ui::text("SHALLOWS", 520.0, y + 6.0, 10.0, LCYAN);
+            ui::text_shadow("SHALLOWS", ix, 6.0, 11.0, LCYAN);
+            ix += 70.0;
         }
         if self.fast {
-            ui::text(">> FAST", 520.0, y + 22.0, 10.0, YELLOW);
+            ui::text_shadow(">> FAST SAILING", ix, 6.0, 11.0, YELLOW);
         }
         ui::text_right("Arrows steer  M map  I info", W - 4.0, y + 6.0, 9.0, LGRAY);
         ui::text_right("D dig  F fast  Space pause  Esc menu", W - 4.0, y + 22.0, 9.0, LGRAY);
@@ -385,7 +387,7 @@ fn heading_to_screen(h: f32) -> f32 {
 pub fn draw_full_map(w: &World, geo: &Geo, show_player: bool) {
     let mh = W * geo::GH as f32 / geo::GW as f32;
     rect(0.0, 0.0, W, H, BLACK);
-    draw_texture_ex(&geo.texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(W, mh)), ..Default::default() });
+    draw_texture_ex(geo.texture(), 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(W, mh)), ..Default::default() });
     let sc = W / geo::GW as f32;
     for t in &w.towns {
         let Some(n) = t.nation else { continue };

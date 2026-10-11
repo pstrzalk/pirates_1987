@@ -126,7 +126,7 @@ async fn main() {
             TestScreen::Land(l) => l.draw(),
             TestScreen::Game(app) => app.draw(),
             TestScreen::Map(g) => {
-                draw_texture_ex(&g.texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(640.0, 394.0)), ..Default::default() });
+                draw_texture_ex(g.texture(), 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(640.0, 394.0)), ..Default::default() });
                 for t in data::TOWNS {
                     let (land, _) = g.snap_town(t.lon, t.lat);
                     let (gx, gy) = geo::to_grid(land.x, land.y);

@@ -167,7 +167,7 @@ impl Title {
                 x += 40.0;
             }
         }
-        art::ship_side(170.0 + (t * 0.7).sin() * 4.0, 262.0 + (t * 1.5).sin() * 2.0, 1.25, ShipKind::FastGalleon, Nation::Pirate, true);
+        art::ship_side(150.0 + (t * 0.7).sin() * 4.0, 300.0 + (t * 1.5).sin() * 2.0, 1.1, ShipKind::FastGalleon, Nation::Pirate, true);
 
         ui::text_center("PIRATES!", W / 2.0 + 3.0, 20.0, 64.0, BLACK);
         ui::text_center("PIRATES!", W / 2.0, 17.0, 64.0, YELLOW);

@@ -391,7 +391,58 @@ impl App {
             )
         };
         self.world = Some(w);
+        if let Ok(d) = std::env::var("PIRATES_DEBUG") {
+            self.debug_setup(&d);
+        }
         self.message("A New Career", story, Picture::Town(start), Action::ArriveTown(start));
+    }
+
+    /// Testing aid: PIRATES_DEBUG=ship,rich,hostile,old (comma separated).
+    fn debug_setup(&mut self, opts: &str) {
+        let geo = &self.geo;
+        let w = self.world.as_mut().unwrap();
+        for o in opts.split(',') {
+            match o {
+                "ship" | "pirate" | "warship" => {
+                    let pp = v(w.player.pos);
+                    let (kind, nation, role) = match o {
+                        "pirate" => (ShipKind::Sloop, Nation::Pirate, Role::Pirate),
+                        "warship" => (ShipKind::Frigate, Nation::Spain, Role::Warship),
+                        _ => (ShipKind::Merchantman, Nation::Spain, Role::Merchant),
+                    };
+                    for d in [vec2(0.0, -0.8), vec2(0.8, 0.0), vec2(0.0, 0.8), vec2(-0.8, 0.0), vec2(1.2, -1.2), vec2(-1.2, -1.2)] {
+                        let q = pp + d;
+                        if geo.is_water(q.x, q.y) {
+                            if let Some(id) = w.add_ai_ship(geo, kind, nation, role, q, None) {
+                                if let Some(s) = w.ships.iter_mut().find(|s| s.id == id) {
+                                    s.path = vec![p(pp)];
+                                    s.has_clue = true;
+                                    s.has_map = true;
+                                    s.chase = 30.0;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+                "rich" => {
+                    w.player.gold = 6000;
+                    w.player.map_pieces = 3;
+                    w.player.ships[0] = Ship::new(ShipKind::Frigate);
+                    w.player.ships[0].guns = 28;
+                    w.player.crew = 180;
+                    w.player.food = 80;
+                    w.player.points = [0, 30, 0, 0];
+                }
+                "hostile" => {
+                    w.player.standing[Nation::Spain.idx()] = -80;
+                }
+                "old" => {
+                    w.player.age = 69.9;
+                }
+                _ => {}
+            }
+        }
     }
 
     // -------------------------------------------------------------- towns
@@ -1392,3 +1443,7 @@ pub fn role_value(r: Role) -> i32 {
         Role::TreasureFleet => 4,
     }
 }
+
+#[cfg(test)]
+#[path = "game_tests.rs"]
+mod tests;

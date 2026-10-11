@@ -26,7 +26,7 @@ pub struct Geo {
     pub tiles: Vec<Tile>,
     /// Distance (in cells) from the sea for land tiles; 0 for water.
     pub inland: Vec<u8>,
-    pub texture: Texture2D,
+    texture: std::cell::OnceCell<Texture2D>,
 }
 
 type P = (f32, f32);
@@ -138,8 +138,8 @@ const BANKS: &[(f32, f32, f32, f32, f32)] = &[
     (-77.6, 24.2, 1.0, 1.4, 15.0),
     (-76.0, 23.8, 0.6, 1.2, -30.0),
     (-81.0, 24.8, 0.9, 0.18, 20.0),
-    (-89.8, 22.0, 2.2, 0.8, 0.0),
-    (-82.5, 15.0, 0.9, 1.6, 0.0),
+    (-89.6, 21.9, 1.7, 0.55, 0.0),
+    (-82.8, 14.2, 0.5, 1.3, 0.0),
     (-80.0, 22.9, 1.3, 0.25, -15.0),
     (-78.8, 21.2, 1.2, 0.25, -10.0),
     (-82.5, 21.8, 1.2, 0.35, 0.0),
@@ -290,8 +290,12 @@ impl Geo {
                 }
             }
         }
-        let texture = Self::render(&tiles, &inland);
-        Geo { tiles, inland, texture }
+        Geo { tiles, inland, texture: std::cell::OnceCell::new() }
+    }
+
+    /// The rendered map texture (created on first use; needs a GL context).
+    pub fn texture(&self) -> &Texture2D {
+        self.texture.get_or_init(|| Self::render(&self.tiles, &self.inland))
     }
 
     fn render(tiles: &[Tile], inland: &[u8]) -> Texture2D {

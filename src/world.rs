@@ -922,7 +922,7 @@ impl World {
         self.add_ai_ship(geo, kind, nation, role, start, dest);
     }
 
-    fn add_ai_ship(&mut self, geo: &Geo, kind: ShipKind, nation: Nation, role: Role, start: Vec2, dest: Option<usize>) -> Option<u32> {
+    pub fn add_ai_ship(&mut self, geo: &Geo, kind: ShipKind, nation: Nation, role: Role, start: Vec2, dest: Option<usize>) -> Option<u32> {
         let spec = kind.spec();
         let target = match dest {
             Some(d) => v(self.towns[d].anchor),
