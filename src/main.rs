@@ -1,12 +1,20 @@
 //! Sid Meier's Pirates! (1987) clone in Rust.
 
+mod art;
 mod data;
+mod ending;
 mod fencing;
+mod game;
 mod geo;
+mod info;
 mod input;
 mod landbattle;
+mod market;
 mod naval;
+mod sail;
+mod title;
 mod ui;
+mod world;
 
 use input::{Input, Script};
 use macroquad::prelude::*;
@@ -47,6 +55,7 @@ enum TestScreen {
     Fencing(fencing::Duel),
     Land(landbattle::LandBattle),
     Map(geo::Geo),
+    Game(Box<game::App>),
 }
 
 #[macroquad::main(window_conf)]
@@ -63,7 +72,8 @@ async fn main() {
         "naval" => TestScreen::Naval(naval::NavalBattle::test_default()),
         "fencing" => TestScreen::Fencing(fencing::Duel::test_default()),
         "land" => TestScreen::Land(landbattle::LandBattle::test_default()),
-        _ => TestScreen::Map(geo::Geo::new()),
+        "map" => TestScreen::Map(geo::Geo::new()),
+        _ => TestScreen::Game(Box::new(game::App::new())),
     };
     let mut last_mouse = Vec2::ZERO;
     loop {
@@ -100,6 +110,12 @@ async fn main() {
                     break;
                 }
             }
+            TestScreen::Game(app) => {
+                app.update(&inp, dt);
+                if app.quit {
+                    break;
+                }
+            }
         }
 
         clear_background(BLACK);
@@ -108,6 +124,7 @@ async fn main() {
             TestScreen::Naval(b) => b.draw(),
             TestScreen::Fencing(d) => d.draw(),
             TestScreen::Land(l) => l.draw(),
+            TestScreen::Game(app) => app.draw(),
             TestScreen::Map(g) => {
                 draw_texture_ex(&g.texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(640.0, 394.0)), ..Default::default() });
                 for t in data::TOWNS {
