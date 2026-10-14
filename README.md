@@ -56,7 +56,9 @@ cargo run --release
 - `PIRATES_SCRIPT=file` drives the game from a script (`wait N`,
   `press KEY…`, `hold KEY N`, `type TEXT`, `shot file.png`, `quit`), for
   automated testing and screenshots.
-- `PIRATES_TEST=naval|fencing|land|map` opens a single minigame directly.
+- `PIRATES_TEST=naval|fencing|land|map` opens a single minigame directly;
+  `PIRATES_TEST=pictures` shows every scene picture (Right for the next page).
+  With `PIRATES_TEST=fencing`, `PIRATES_DUEL=town|personal` picks the setting.
 - `PIRATES_DEBUG=ship,pirate,warship,rich,hostile,old` sets up test
   scenarios when a new career starts.
 - `PIRATES_MUTE=1` turns off sound.

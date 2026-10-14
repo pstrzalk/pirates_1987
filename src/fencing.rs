@@ -2,6 +2,7 @@
 //! fight behind them.
 
 use crate::input::Input;
+use crate::pixel::{Canvas, Paint::*, *};
 use crate::ui::{self, Menu};
 use macroquad::prelude::*;
 use macroquad::rand::gen_range;
@@ -203,9 +204,15 @@ impl Duel {
     }
 
     /// A default setup used by `PIRATES_TEST=fencing`.
+    /// Test duel; PIRATES_DUEL=town|personal picks the setting.
     pub fn test_default() -> Self {
+        let kind = match std::env::var("PIRATES_DUEL").as_deref() {
+            Ok("town") => DuelKind::TownAssault,
+            Ok("personal") => DuelKind::Personal,
+            _ => DuelKind::Boarding,
+        };
         Self::new(DuelSetup {
-            kind: DuelKind::Boarding,
+            kind,
             player_name: "Nicholas".into(),
             opponent_name: "Don Alonso".into(),
             opponent_title: "Captain of the Spanish Merchantman".into(),
@@ -479,22 +486,22 @@ impl Duel {
             Phase::End { msg, won, .. } => {
                 self.draw_fight();
                 let w = 460.0;
-                ui::panel(320.0 - w / 2.0, 150.0, w, 70.0, if *won { ui::BLUE } else { ui::RED }, ui::YELLOW);
+                ui::parchment(320.0 - w / 2.0, 150.0, w, 70.0);
                 let lines = ui::wrap(msg, 16.0, w - 30.0);
                 for (i, l) in lines.iter().enumerate() {
-                    ui::text_center(l, 320.0, 162.0 + i as f32 * 20.0, 16.0, ui::WHITE);
+                    ui::text_center(l, 320.0, 162.0 + i as f32 * 20.0, 16.0, if *won { ui::BLUE } else { ui::RED });
                 }
             }
         }
     }
 
     fn draw_choose(&self, menu: &Menu) {
-        self.draw_background();
+        ui::pixelated(|| self.draw_background());
         ui::parchment(120.0, 60.0, 400.0, 280.0);
         ui::text_center("Choose your weapon", 320.0, 76.0, 20.0, ui::INK);
         ui::text_center(&format!("You face {}", self.setup.opponent_name), 320.0, 104.0, 14.0, ui::INK);
-        ui::text_center(&self.setup.opponent_title, 320.0, 122.0, 12.0, ui::BROWN);
-        menu.draw(220.0, 150.0, 200.0, 16.0, ui::INK, ui::BROWN, ui::YELLOW);
+        ui::text_center(&self.setup.opponent_title, 320.0, 122.0, 12.0, ui::BLACK);
+        menu.draw(220.0, 150.0, 200.0, 16.0, ui::INK, ui::HILITE, ui::YELLOW);
         let w = WEAPONS[menu.sel.min(2)];
         for (i, l) in ui::wrap(w.desc(), 12.0, 350.0).iter().enumerate() {
             ui::text(l, 145.0, 240.0 + i as f32 * 15.0, 12.0, ui::INK);
@@ -505,69 +512,148 @@ impl Duel {
         draw_line(320.0 - len / 2.0, y, 320.0 + len / 2.0, y, if w == Weapon::Rapier { 1.5 } else { 3.0 }, ui::DGRAY);
         draw_line(320.0 - len / 2.0 - 2.0, y - 8.0, 320.0 - len / 2.0 - 2.0, y + 8.0, 3.0, ui::BROWN);
         draw_line(320.0 - len / 2.0 - 18.0, y, 320.0 - len / 2.0 - 2.0, y, 4.0, ui::BROWN);
-        ui::text_center("Up/Down to choose, Enter to fight", 320.0, 318.0, 10.0, ui::BROWN);
+        ui::text_center("Up/Down to choose, Enter to fight", 320.0, 318.0, 10.0, ui::BLACK);
     }
 
+    /// The backdrop, painted as EGA pixel art (half resolution).
     fn draw_background(&self) {
+        let mut cv = Canvas::new(320, 200);
+        let f = (self.time * 6.0) as i32;
         match self.setup.kind {
             DuelKind::Boarding => {
-                for i in 0..20 {
-                    let t = i as f32 / 20.0;
-                    ui::rect(0.0, i as f32 * 10.0, 640.0, 10.0, ui::lerp_color(ui::LBLUE, ui::LCYAN, t));
+                // On deck, after the original: cyan sky, rigging, rail and guns.
+                cv.fill(LC);
+                cv.rect(0, 0, 320, 30, Ck(LC, W));
+                cv.rect(0, 100, 320, 24, B);
+                for k in 0..14 {
+                    let x = (k * 29 + f) % 330 - 5;
+                    cv.hline(x, x + 5, 104 + (k % 4) * 5, LB);
                 }
-                ui::rect(0.0, 200.0, 640.0, 60.0, ui::SEA);
-                for i in 0..12 {
-                    let x = ((i as f32 * 61.0 + self.time * 12.0) % 680.0) - 20.0;
-                    draw_line(x, 215.0 + (i % 4) as f32 * 11.0, x + 14.0, 215.0 + (i % 4) as f32 * 11.0, 1.0, ui::LBLUE);
+                for &mx in &[75, 250] {
+                    // Shrouds fanning down to the rail.
+                    for k in -4..=4 {
+                        cv.line(mx, 6, mx + k * 9, 124, K);
+                    }
+                    cv.rect(mx - 3, 0, 6, 136, N);
+                    cv.vline(mx + 2, 0, 135, K);
+                    cv.rect(mx - 30, 18, 60, 3, N);
                 }
-                // masts and sails
-                for &mx in &[150.0f32, 500.0] {
-                    ui::rect(mx - 4.0, 20.0, 8.0, 250.0, ui::BROWN);
-                    ui::rect(mx - 50.0, 40.0, 100.0, 60.0, ui::WHITE);
-                    ui::rect(mx - 40.0, 110.0, 80.0, 50.0, ui::WHITE);
-                    ui::frame(mx - 50.0, 40.0, 100.0, 60.0, ui::LGRAY, 1.0);
-                    ui::frame(mx - 40.0, 110.0, 80.0, 50.0, ui::LGRAY, 1.0);
-                    draw_line(mx - 55.0, 40.0, mx + 55.0, 40.0, 3.0, ui::BROWN);
-                    draw_line(mx - 45.0, 110.0, mx + 45.0, 110.0, 3.0, ui::BROWN);
+                cv.rect(0, 122, 320, 14, B);
+                cv.rect(0, 122, 320, 4, N);
+                cv.hline(0, 319, 122, Y);
+                for k in 0..32 {
+                    cv.rect(k * 10 + 2, 126, 3, 10, N);
+                    cv.vline(k * 10 + 4, 126, 135, K);
                 }
-                // railing
-                ui::rect(0.0, 250.0, 640.0, 6.0, ui::BROWN);
-                for i in 0..33 {
-                    ui::rect(i as f32 * 20.0, 256.0, 4.0, 18.0, ui::BROWN);
+                cv.rect(0, 136, 320, 64, Sp(N, Y));
+                for r in 0..8 {
+                    cv.hline(0, 319, 138 + r * 8, K);
+                    let off = (r * 37) % 60;
+                    let mut x = off;
+                    while x < 320 {
+                        cv.vline(x, 139 + r * 8, 145 + r * 8, K);
+                        x += 60;
+                    }
                 }
-                ui::rect(0.0, 272.0, 640.0, 128.0, Color::new(0.55, 0.35, 0.15, 1.0));
-                for i in 0..9 {
-                    draw_line(0.0, 280.0 + i as f32 * 14.0, 640.0, 280.0 + i as f32 * 14.0, 1.0, Color::new(0.35, 0.2, 0.08, 1.0));
+                // Cannons along the rail.
+                for &gx in &[20, 120, 190, 290] {
+                    cv.rect(gx - 8, 128, 16, 6, DG);
+                    cv.rect(gx - 8, 128, 16, 2, LG);
+                    cv.rect(gx + 8, 129, 6, 3, K);
+                    cv.ellipse(gx as f32 - 4.0, 135.0, 3.0, 3.0, N);
+                    cv.ellipse(gx as f32 + 5.0, 135.0, 3.0, 3.0, N);
                 }
             }
             DuelKind::TownAssault => {
-                ui::rect(0.0, 0.0, 640.0, 160.0, ui::LCYAN);
-                ui::rect(0.0, 90.0, 640.0, 180.0, ui::LGRAY);
-                for r in 0..9 {
-                    for c in 0..17 {
-                        let off = if r % 2 == 0 { 0.0 } else { 20.0 };
-                        ui::frame(c as f32 * 40.0 - off, 90.0 + r as f32 * 20.0, 40.0, 20.0, ui::DGRAY, 1.0);
+                // The battlements: banners against the sky, a rubble wall.
+                cv.fill(LC);
+                cv.rect(0, 0, 320, 40, Ck(LC, W));
+                for (i, &bx) in [40, 110, 210, 280].iter().enumerate() {
+                    cv.vline(bx, 40, 112, K);
+                    let c = if i % 2 == 0 { R } else { G };
+                    cv.poly(&[(bx as f32 + 1.0, 40.0), (bx as f32 + 16.0, 46.0), (bx as f32 + 1.0, 54.0)], c);
+                }
+                cv.rect(0, 108, 320, 30, Ck(DG, LG));
+                // Rough rubble stones, light on top and dark below.
+                for r in 0..4 {
+                    let mut x: i32 = (r * 7) % 14 - 7;
+                    while x < 330 {
+                        let w = 6 + (x * 13 + r * 5).rem_euclid(5);
+                        let (cx, cy) = (x as f32 + w as f32 * 0.5, (112 + r * 7) as f32);
+                        cv.ellipse(cx, cy, w as f32 * 0.5 + 0.5, 3.5, K);
+                        cv.ellipse(cx, cy, w as f32 * 0.5 - 0.5, 2.5, DG);
+                        cv.ellipse(cx - 0.5, cy - 1.0, w as f32 * 0.5 - 1.5, 1.5, LG);
+                        x += w + 1;
                     }
                 }
                 for c in 0..16 {
-                    ui::rect(c as f32 * 42.0, 70.0, 24.0, 20.0, ui::LGRAY);
+                    cv.rect(c * 21, 100, 12, 10, LG);
+                    cv.rect(c * 21 + 9, 100, 3, 10, DG);
                 }
-                ui::rect(280.0, 140.0, 80.0, 130.0, ui::BLACK);
-                ui::rect(0.0, 270.0, 640.0, 130.0, Color::new(0.8, 0.7, 0.45, 1.0));
+                cv.rect(0, 138, 320, 62, Ck(LG, N));
+                for r in 0..6 {
+                    cv.hline(0, 319, 140 + r * 10, DG);
+                }
             }
             DuelKind::Personal => {
-                ui::rect(0.0, 0.0, 640.0, 270.0, Color::new(0.4, 0.22, 0.1, 1.0));
-                for i in 0..16 {
-                    draw_line(i as f32 * 40.0, 0.0, i as f32 * 40.0, 270.0, 2.0, Color::new(0.3, 0.15, 0.05, 1.0));
+                // A town wall of weathered brick with arched doors.
+                cv.fill(Ck(N, R));
+                for r in 0..17 {
+                    let y = r * 8;
+                    cv.hline(0, 319, y, K);
+                    let off = if r % 2 == 0 { 0 } else { 8 };
+                    let mut x = off;
+                    while x < 320 {
+                        cv.vline(x, y, y + 7, K);
+                        x += 16;
+                    }
                 }
-                ui::rect(100.0, 60.0, 80.0, 60.0, ui::LBLUE);
-                ui::rect(460.0, 60.0, 80.0, 60.0, ui::LBLUE);
-                ui::rect(0.0, 270.0, 640.0, 130.0, Color::new(0.5, 0.3, 0.12, 1.0));
-                for &tx in &[80.0f32, 540.0] {
-                    ui::rect(tx - 30.0, 220.0, 60.0, 8.0, ui::BROWN);
-                    ui::rect(tx - 4.0, 228.0, 8.0, 42.0, ui::BROWN);
+                for &dx in &[50, 270] {
+                    cv.rect(dx - 16, 70, 32, 66, K);
+                    cv.ellipse(dx as f32, 70.0, 16.0, 14.0, K);
+                    cv.rect(dx - 13, 72, 26, 64, Vl(N, K));
+                    cv.ellipse(dx as f32, 72.0, 13.0, 11.0, K);
+                }
+                for &wx in &[110, 210] {
+                    cv.ellipse(wx as f32, 44.0, 10.0, 10.0, LG);
+                    cv.ellipse(wx as f32, 44.0, 8.0, 8.0, LC);
+                    cv.vline(wx, 36, 52, K);
+                    cv.hline(wx - 8, wx + 8, 44, K);
+                }
+                cv.rect(0, 136, 320, 64, Ck(LG, DG));
+                for r in 0..8 {
+                    let y = 138 + r * 8;
+                    cv.hline(0, 319, y, DG);
+                    let mut x = (r % 2) * 6;
+                    while x < 320 {
+                        cv.vline(x, y, y + 7, DG);
+                        x += 12;
+                    }
                 }
             }
+        }
+        cv.present(0.0, 0.0, ui::W, ui::H);
+    }
+
+    /// Frame the scene with the original's bevelled border and blue margin.
+    fn draw_frame(&self) {
+        let (x0, y0, x1, y1) = (8.0, 60.0, 632.0, 340.0);
+        ui::rect(0.0, 0.0, ui::W, y0, ui::LBLUE);
+        ui::rect(0.0, y1, ui::W, ui::H - y1, ui::LBLUE);
+        ui::rect(0.0, 0.0, x0, ui::H, ui::LBLUE);
+        ui::rect(x1, 0.0, ui::W - x1, ui::H, ui::LBLUE);
+        ui::frame(x0 - 2.0, y0 - 2.0, x1 - x0 + 4.0, y1 - y0 + 4.0, ui::BLACK, 2.0);
+        ui::frame(x0 - 5.0, y0 - 5.0, x1 - x0 + 10.0, y1 - y0 + 10.0, ui::LGRAY, 3.0);
+        ui::frame(x0 - 8.0, y0 - 8.0, x1 - x0 + 16.0, y1 - y0 + 16.0, ui::BLUE, 3.0);
+    }
+
+    fn morale(g: f32) -> &'static str {
+        match g {
+            g if g > 0.6 => "Wild",
+            g if g > 0.2 => "Angry",
+            g if g > -0.2 => "Firm",
+            g if g > -0.6 => "Shaken",
+            _ => "Panic",
         }
     }
 
@@ -593,6 +679,12 @@ impl Duel {
     }
 
     fn draw_fight(&self) {
+        ui::pixelated(|| self.draw_fight_scene());
+        self.draw_frame();
+        self.draw_hud();
+    }
+
+    fn draw_fight_scene(&self) {
         self.draw_background();
         self.draw_crowds();
         let (px, ex) = self.fighter_x();
@@ -610,39 +702,45 @@ impl Duel {
                 draw_line(f.x, f.y, f.x + a.cos() * r, f.y + a.sin() * r, 2.0, c);
             }
         }
-        self.draw_hud();
     }
 
     fn draw_hud(&self) {
-        ui::panel(0.0, 0.0, 640.0, 46.0, ui::BLACK, ui::BROWN);
-        ui::text(&self.setup.player_name, 10.0, 6.0, 14.0, ui::LCYAN);
-        ui::text_right(&self.setup.opponent_name, 630.0, 6.0, 14.0, ui::LRED);
-        if !self.personal() {
-            ui::text(&format!("Crew: {}", self.player_crew as i32), 10.0, 24.0, 12.0, ui::WHITE);
-            let label = if self.setup.kind == DuelKind::TownAssault { "Soldiers" } else { "Crew" };
-            ui::text_right(&format!("{label}: {}", self.enemy_crew as i32), 630.0, 24.0, 12.0, ui::WHITE);
-        } else {
-            ui::text(self.player.weapon.name(), 10.0, 24.0, 12.0, ui::WHITE);
-            ui::text_right(self.enemy.weapon.name(), 630.0, 24.0, 12.0, ui::WHITE);
-        }
-        // Ground indicator
-        let (x0, x1, y) = (200.0, 440.0, 26.0);
-        ui::text_center("GROUND", 320.0, 4.0, 10.0, ui::LGRAY);
-        draw_line(x0, y, x1, y, 2.0, ui::LGRAY);
+        // Title box: "X vs. Y", with the ground indicator.
+        let title = format!("{} vs. {}", self.setup.player_name, self.setup.opponent_name);
+        ui::parchment(120.0, 4.0, 400.0, 46.0);
+        ui::text_center(&title, 320.0, 11.0, 14.0, ui::BLACK);
+        let (x0, x1, y) = (220.0, 420.0, 38.0);
+        draw_line(x0, y, x1, y, 2.0, ui::DGRAY);
         for i in -5..=5 {
             let x = 320.0 + i as f32 * (x1 - x0) / 10.0;
-            draw_line(x, y - 4.0, x, y + 4.0, 1.0, if i == 0 { ui::WHITE } else { ui::DGRAY });
+            draw_line(x, y - 3.0, x, y + 3.0, 1.0, if i == 0 { ui::BLACK } else { ui::DGRAY });
         }
-        ui::rect(x0 - 6.0, y - 6.0, 6.0, 12.0, ui::LBLUE);
-        ui::rect(x1, y - 6.0, 6.0, 12.0, ui::LRED);
-        let mx = 320.0 + (self.ground_vis / EDGE).clamp(-1.0, 1.0) * (x1 - x0) / 2.0;
-        draw_triangle(vec2(mx, y - 2.0), vec2(mx - 5.0, y - 10.0), vec2(mx + 5.0, y - 10.0), ui::YELLOW);
-        // Guard & controls
-        ui::rect(0.0, 376.0, 640.0, 24.0, Color::new(0.0, 0.0, 0.0, 0.7));
-        ui::text(&format!("Guard: {}", height_name(self.player.guard)), 8.0, 382.0, 12.0, ui::YELLOW);
-        ui::text_right("Up/Down: guard  Space/Right: attack  Left: leap back", 632.0, 383.0, 10.0, ui::LGRAY);
+        ui::rect(x0 - 6.0, y - 5.0, 6.0, 10.0, ui::BLUE);
+        ui::rect(x1, y - 5.0, 6.0, 10.0, ui::RED);
+        let g = (self.ground_vis / EDGE).clamp(-1.0, 1.0);
+        let mx = 320.0 + g * (x1 - x0) / 2.0;
+        draw_triangle(vec2(mx, y - 1.0), vec2(mx - 5.0, y - 8.0), vec2(mx + 5.0, y - 8.0), ui::RED);
+        // Force / Morale box below the picture, as in the original.
+        let (bx, by, bw, bh) = (40.0, 346.0, 560.0, 52.0);
+        ui::parchment(bx, by, bw, bh);
+        let (c1, c2, c3) = (bx + 16.0, bx + 150.0, bx + 330.0);
+        let label = if self.setup.kind == DuelKind::TownAssault { "Soldiers" } else { "Crew" };
+        if self.personal() {
+            ui::text("Weapon:", c1, by + 9.0, 12.0, ui::BLACK);
+            ui::text(self.player.weapon.name(), c2, by + 9.0, 12.0, ui::BLUE);
+            ui::text(self.enemy.weapon.name(), c3, by + 9.0, 12.0, ui::BLUE);
+        } else {
+            ui::text("Force:", c1, by + 9.0, 12.0, ui::BLACK);
+            ui::text(&format!("{} men", self.player_crew as i32), c2, by + 9.0, 12.0, ui::BLUE);
+            ui::text(&format!("{} {}", self.enemy_crew as i32, label.to_lowercase()), c3, by + 9.0, 12.0, ui::BLUE);
+        }
+        ui::text("Morale:", c1, by + 23.0, 12.0, ui::BLACK);
+        ui::text(Self::morale(g), c2, by + 23.0, 12.0, ui::BLUE);
+        ui::text(Self::morale(-g), c3, by + 23.0, 12.0, ui::BLUE);
+        ui::text(&format!("Guard: {}", height_name(self.player.guard)), bx + 440.0, by + 9.0, 12.0, ui::RED);
+        ui::text_center("Up/Down guard   Space/Right attack   Left leap back", 320.0, by + 38.0, 9.0, ui::BLACK);
         if self.msg_t > 0.0 && matches!(self.phase, Phase::Fight) {
-            ui::text_shadow(&self.msg, 320.0 - ui::measure(&self.msg, 16.0) / 2.0, 60.0, 16.0, ui::WHITE);
+            ui::text_shadow(&self.msg, 320.0 - ui::measure(&self.msg, 16.0) / 2.0, 70.0, 16.0, ui::WHITE);
         }
     }
 }
@@ -653,7 +751,7 @@ fn small_man(x: f32, y: f32, shirt: Color, facing_right: bool, t: f32) {
     draw_line(x - 2.0, y, x, y - 7.0, 1.5, ui::BLACK);
     draw_line(x + 2.0, y, x, y - 7.0, 1.5, ui::BLACK);
     ui::rect(x - 2.5, y - 15.0, 5.0, 8.0, shirt);
-    draw_circle(x, y - 18.0, 3.0, Color::new(0.95, 0.75, 0.6, 1.0));
+    draw_circle(x, y - 18.0, 3.0, ui::LRED);
     let a = (t * 5.0).sin() * 0.8;
     let (hx, hy) = (x + d * 5.0, y - 13.0 - a * 4.0);
     draw_line(x, y - 13.0, hx, hy, 1.2, ui::BLACK);
@@ -663,7 +761,7 @@ fn small_man(x: f32, y: f32, shirt: Color, facing_right: bool, t: f32) {
 /// Draw a swordsman with feet at (x, y).
 fn draw_fighter(x: f32, y: f32, facing_right: bool, f: &Fighter, shirt: Color, coat: Color) {
     let d = if facing_right { 1.0 } else { -1.0 };
-    let skin = Color::new(0.95, 0.75, 0.6, 1.0);
+    let skin = ui::LRED;
     let lean = match f.action {
         Action::Stagger { t } => -t * 25.0,
         Action::Dodge { t } => -t * 30.0,

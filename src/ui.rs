@@ -13,6 +13,7 @@ pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
 pub const BLUE: Color = Color::new(0.0, 0.0, 0.667, 1.0);
 pub const GREEN: Color = Color::new(0.0, 0.667, 0.0, 1.0);
 pub const RED: Color = Color::new(0.667, 0.0, 0.0, 1.0);
+#[allow(dead_code)]
 pub const MAGENTA: Color = Color::new(0.667, 0.0, 0.667, 1.0);
 pub const BROWN: Color = Color::new(0.667, 0.333, 0.0, 1.0);
 pub const LGRAY: Color = Color::new(0.667, 0.667, 0.667, 1.0);
@@ -23,10 +24,11 @@ pub const LCYAN: Color = Color::new(0.333, 1.0, 1.0, 1.0);
 pub const LRED: Color = Color::new(1.0, 0.333, 0.333, 1.0);
 pub const YELLOW: Color = Color::new(1.0, 1.0, 0.333, 1.0);
 pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
-pub const PARCHMENT: Color = Color::new(0.93, 0.85, 0.64, 1.0);
-pub const INK: Color = Color::new(0.25, 0.13, 0.03, 1.0);
-pub const SEA: Color = Color::new(0.05, 0.15, 0.55, 1.0);
-pub const SHALLOW: Color = Color::new(0.2, 0.4, 0.8, 1.0);
+/// Text boxes are light gray with dark blue text, as in the DOS original.
+pub const PARCHMENT: Color = LGRAY;
+pub const INK: Color = BLUE;
+/// Background of the selected menu item.
+pub const HILITE: Color = BLUE;
 
 thread_local! {
     static SCALE: Cell<f32> = const { Cell::new(1.0) };
@@ -114,9 +116,10 @@ pub fn panel(x: f32, y: f32, w: f32, h: f32, bg: Color, border: Color) {
 }
 
 pub fn parchment(x: f32, y: f32, w: f32, h: f32) {
-    rect(x, y, w, h, PARCHMENT);
-    frame(x + 3.0, y + 3.0, w - 6.0, h - 6.0, BROWN, 2.0);
-    frame(x, y, w, h, INK, 1.0);
+    rect(x, y, w, h, BLACK);
+    rect(x + 1.0, y + 1.0, w - 2.0, h - 2.0, BLUE);
+    rect(x + 4.0, y + 4.0, w - 8.0, h - 8.0, PARCHMENT);
+    frame(x + 6.0, y + 6.0, w - 12.0, h - 12.0, BLUE, 1.0);
 }
 
 pub fn lerp_color(a: Color, b: Color, t: f32) -> Color {
@@ -254,4 +257,32 @@ impl TextEntry {
 
 pub fn blink() -> bool {
     (get_time() * 2.0) as i64 % 2 == 0
+}
+
+/// Run `f` drawing into a 320x200 off-screen buffer (in the usual 640x400
+/// logical coordinates), then blow it up with hard pixel edges: everything
+/// drawn inside gets the chunky look of the EGA original.
+pub fn pixelated(f: impl FnOnce()) {
+    thread_local! {
+        static RT: std::cell::RefCell<Option<RenderTarget>> = const { std::cell::RefCell::new(None) };
+    }
+    let rt = RT.with(|r| {
+        r.borrow_mut()
+            .get_or_insert_with(|| {
+                let rt = render_target((W / 2.0) as u32, (H / 2.0) as u32);
+                rt.texture.set_filter(FilterMode::Nearest);
+                rt
+            })
+            .clone()
+    });
+    push_camera_state();
+    let mut cam = Camera2D::from_display_rect(Rect::new(0.0, 0.0, W, H));
+    // Render targets are stored bottom-up.
+    cam.zoom.y = -cam.zoom.y;
+    cam.render_target = Some(rt.clone());
+    set_camera(&cam);
+    clear_background(BLACK);
+    f();
+    pop_camera_state();
+    draw_texture_ex(&rt.texture, 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(W, H)), ..Default::default() });
 }

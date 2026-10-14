@@ -105,25 +105,31 @@ impl Dialog {
 
     fn draw(&self, world: Option<&World>, geo: &Geo) {
         let has_pic = self.picture != Picture::None;
-        let (px, py, pw, ph) = (0.0, 0.0, ui::W, 190.0);
         if has_pic {
-            art::draw_picture(&self.picture, px, py, pw, ph, world, geo);
-        } else {
-            ui::rect(0.0, 0.0, ui::W, ui::H, ui::BLUE);
+            art::draw_picture(&self.picture, &self.title, world, geo);
         }
-        let ty = if has_pic { 192.0 } else { 30.0 };
+        if !has_pic {
+            ui::rect(0.0, 0.0, ui::W, ui::H, ui::LBLUE);
+        }
+        let ty = if has_pic { art::STRIP_H } else { 30.0 };
         let th = ui::H - ty - if has_pic { 2.0 } else { 30.0 };
         let (tx, tw) = if has_pic { (2.0, ui::W - 4.0) } else { (60.0, ui::W - 120.0) };
         ui::parchment(tx, ty, tw, th);
-        ui::text(&self.title, tx + 14.0, ty + 10.0, 16.0, ui::RED);
+        // With a picture the title is shown in the caption box above.
+        let body_y = if has_pic {
+            ty + 14.0
+        } else {
+            ui::text(&self.title, tx + 14.0, ty + 12.0, 16.0, ui::RED);
+            ty + 34.0
+        };
         let menu_h = self.menu.height(14.0);
         let lines = ui::wrap(&self.body, 13.0, tw - 28.0);
-        let max_lines = ((th - 40.0 - menu_h - 10.0) / 15.0).max(1.0) as usize;
+        let max_lines = ((ty + th - body_y - menu_h - 14.0) / 15.0).max(1.0) as usize;
         for (i, l) in lines.iter().take(max_lines).enumerate() {
-            ui::text(l, tx + 14.0, ty + 32.0 + i as f32 * 15.0, 13.0, ui::INK);
+            ui::text(l, tx + 14.0, body_y + i as f32 * 15.0, 13.0, ui::INK);
         }
         let my = ty + th - menu_h - 10.0;
-        self.menu.draw(tx + 10.0, my, tw - 20.0, 14.0, ui::INK, ui::BROWN, ui::WHITE);
+        self.menu.draw(tx + 10.0, my, tw - 20.0, 14.0, ui::INK, ui::HILITE, ui::WHITE);
     }
 }
 
@@ -477,7 +483,7 @@ impl App {
                 ("Sneak into town by night".to_string(), Action::Sneak(t)),
                 ("Sail away".to_string(), Action::ToSail),
             ];
-            self.dialog(Dialog::new(format!("{name} ({})", n.adj()), body, Picture::Town(t), opts).with_cancel(Action::ToSail));
+            self.dialog(Dialog::new(format!("{name} ({})", n.adj()), body, Picture::Harbor(t), opts).with_cancel(Action::ToSail));
             return;
         }
         // Friendly arrival: reunite with family if they are here.
@@ -967,7 +973,7 @@ impl App {
         let w = self.world.as_ref().unwrap();
         let town = &w.towns[t];
         if w.player.crew < 10 {
-            self.message("Too Few Men", "You have too few men to attack the town.", Picture::Town(t), Action::ArriveTown(t));
+            self.message("Too Few Men", "You have too few men to attack the town.", Picture::Harbor(t), Action::ArriveTown(t));
             return;
         }
         let setup = LandSetup {
@@ -1467,7 +1473,7 @@ impl App {
                 w.player.crew = o.men_left;
                 w.towns[t].soldiers = o.defenders_left.max(5);
                 w.player.morale = (w.player.morale - 10).max(0);
-                self.message("Retreat", "Your men fall back to the boats and row back to the ships.", Picture::Town(t), Action::ToSail);
+                self.message("Retreat", "Your men fall back to the boats and row back to the ships.", Picture::Harbor(t), Action::ToSail);
             }
             LandOutcomeKind::Defeat => {
                 let w = self.w();
@@ -1475,7 +1481,7 @@ impl App {
                 if o.men_left >= 5 {
                     w.player.crew = o.men_left;
                     w.player.morale = (w.player.morale - 20).max(0);
-                    self.message("Defeat", "Your attack is broken. The survivors flee back to the ships in disarray.", Picture::Town(t), Action::ToSail);
+                    self.message("Defeat", "Your attack is broken. The survivors flee back to the ships in disarray.", Picture::Harbor(t), Action::ToSail);
                 } else {
                     let n = w.towns[t].nation;
                     self.captured(n, "Your landing party is destroyed and you are taken prisoner.");

@@ -11,6 +11,7 @@ mod input;
 mod landbattle;
 mod market;
 mod naval;
+mod pixel;
 mod sail;
 mod title;
 mod sound;
@@ -56,6 +57,8 @@ enum TestScreen {
     Fencing(fencing::Duel),
     Land(landbattle::LandBattle),
     Map(geo::Geo),
+    /// Gallery of every scene picture, four per page (Right for the next page).
+    Pictures(usize),
     Game(Box<game::App>),
 }
 
@@ -75,6 +78,7 @@ async fn main() {
         "fencing" => TestScreen::Fencing(fencing::Duel::test_default()),
         "land" => TestScreen::Land(landbattle::LandBattle::test_default()),
         "map" => TestScreen::Map(geo::Geo::new()),
+        "pictures" => TestScreen::Pictures(0),
         _ => TestScreen::Game(Box::new(game::App::new())),
     };
     let mut last_mouse = Vec2::ZERO;
@@ -112,6 +116,14 @@ async fn main() {
                     break;
                 }
             }
+            TestScreen::Pictures(page) => {
+                if inp.cancel() {
+                    break;
+                }
+                if inp.pressed(KeyCode::Right) {
+                    *page += 1;
+                }
+            }
             TestScreen::Game(app) => {
                 app.update(&inp, dt);
                 if app.quit {
@@ -127,6 +139,7 @@ async fn main() {
             TestScreen::Fencing(d) => d.draw(),
             TestScreen::Land(l) => l.draw(),
             TestScreen::Game(app) => app.draw(),
+            TestScreen::Pictures(page) => art::draw_gallery(*page),
             TestScreen::Map(g) => {
                 draw_texture_ex(g.texture(), 0.0, 0.0, WHITE, DrawTextureParams { dest_size: Some(vec2(640.0, 394.0)), ..Default::default() });
                 for t in data::TOWNS {

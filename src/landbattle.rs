@@ -3,6 +3,7 @@
 
 use crate::data::{self, Nation};
 use crate::input::Input;
+use crate::pixel::{Canvas, Paint::*, *};
 use crate::ui;
 use macroquad::prelude::*;
 use macroquad::rand::gen_range;
@@ -817,77 +818,88 @@ impl LandBattle {
 
     // ---------------------------------------------------------------- drawing
 
+    /// Terrain painted as EGA pixel art, 10x10 pixels a tile: green fields
+    /// strewn with grass tufts and clumps of trees, as in the original.
     fn draw_terrain(&self) {
+        const T: i32 = (TS / 2.0) as i32;
+        let mut cv = Canvas::new(GW as i32 * T, GH as i32 * T);
+        let f = (self.time * 4.0) as i32;
         for y in 0..GH as i32 {
             for x in 0..GW as i32 {
-                let (px, py) = (x as f32 * TS, y as f32 * TS);
+                let (px, py) = (x * T, y * T);
                 let t = self.ter(x, y);
-                let h = ((x * 7919 + y * 104729) % 97) as f32 / 97.0;
-                let grass = if (x + y) % 2 == 0 { Color::new(0.2, 0.6, 0.15, 1.0) } else { Color::new(0.22, 0.63, 0.17, 1.0) };
+                let h = (x * 7919 + y * 104729) % 97;
                 match t {
                     Terrain::Open => {
-                        ui::rect(px, py, TS, TS, grass);
-                        if h > 0.6 {
-                            ui::rect(px + h * 14.0, py + 4.0 + h * 8.0, 2.0, 2.0, Color::new(0.35, 0.75, 0.25, 1.0));
+                        cv.rect(px, py, T, T, G);
+                        if h % 3 == 0 {
+                            // A grass tuft: a little "v".
+                            let (tx, ty) = (px + 2 + h % 5, py + 3 + (h / 5) % 4);
+                            let c = if h % 2 == 0 { Y } else { LN };
+                            cv.set(tx, ty, c);
+                            cv.set(tx + 1, ty + 1, c);
+                            cv.set(tx + 2, ty, c);
                         }
                     }
                     Terrain::Beach => {
-                        ui::rect(px, py, TS, TS, Color::new(0.88, 0.8, 0.5, 1.0));
+                        cv.rect(px, py, T, T, Sp(Y, N));
                         if x == 0 {
-                            ui::rect(px, py, 6.0, TS, ui::SHALLOW);
-                            ui::rect(px + 6.0, py + h * 12.0, 2.0, 4.0, ui::WHITE);
+                            cv.rect(px, py, 3, T, LB);
+                            cv.vline(px + 3, py + (h + f) % T, py + (h + f) % T + 1, W);
                         }
                     }
                     Terrain::Forest => {
-                        ui::rect(px, py, TS, TS, Color::new(0.1, 0.42, 0.1, 1.0));
-                        for (ox, oy) in [(5.0, 6.0), (14.0, 5.0), (9.0, 13.0), (16.0, 15.0)] {
-                            draw_circle(px + ox, py + oy, 4.5, Color::new(0.02, 0.3, 0.05, 1.0));
-                            draw_circle(px + ox - 1.0, py + oy - 1.0, 3.0, Color::new(0.1, 0.55, 0.12, 1.0));
+                        cv.rect(px, py, T, T, G);
+                        for (ox, oy) in [(2, 3), (7, 2), (4, 7), (8, 8)] {
+                            cv.vline(px + ox, py + oy + 1, py + oy + 2, N);
+                            cv.ellipse((px + ox) as f32 + 0.5, (py + oy) as f32, 2.0, 1.8, LN);
+                            cv.set(px + ox + 1, py + oy, G);
                         }
                     }
                     Terrain::Hill => {
-                        ui::rect(px, py, TS, TS, Color::new(0.5, 0.55, 0.2, 1.0));
-                        draw_triangle(vec2(px + 2.0, py + 17.0), vec2(px + 10.0, py + 4.0), vec2(px + 18.0, py + 17.0), Color::new(0.55, 0.42, 0.22, 1.0));
-                        draw_triangle(vec2(px + 7.0, py + 9.0), vec2(px + 10.0, py + 4.0), vec2(px + 13.0, py + 9.0), Color::new(0.7, 0.6, 0.4, 1.0));
+                        cv.rect(px, py, T, T, Ck(G, N));
+                        cv.poly(&[(px as f32 + 1.0, py as f32 + 9.0), (px as f32 + 5.0, py as f32 + 2.0), (px as f32 + 9.0, py as f32 + 9.0)], N);
+                        cv.line(px + 5, py + 2, px + 3, py + 6, Y);
                     }
                     Terrain::River => {
-                        ui::rect(px, py, TS, TS, ui::SHALLOW);
-                        let o = ((self.time * 2.0 + y as f32) % 4.0) * 4.0;
-                        ui::rect(px + 4.0, py + o, 6.0, 1.0, Color::new(0.5, 0.7, 1.0, 1.0));
+                        cv.rect(px, py, T, T, B);
+                        let o = (f + y) % T;
+                        cv.hline(px + 2, px + 5, py + o, LB);
                     }
                     Terrain::Ford => {
-                        ui::rect(px, py, TS, TS, Color::new(0.45, 0.62, 0.9, 1.0));
-                        for (ox, oy) in [(4.0, 5.0), (12.0, 9.0), (6.0, 15.0), (15.0, 16.0)] {
-                            draw_circle(px + ox, py + oy, 2.0, ui::LGRAY);
+                        cv.rect(px, py, T, T, LB);
+                        for (ox, oy) in [(2, 2), (6, 4), (3, 7), (7, 8)] {
+                            cv.rect(px + ox, py + oy, 2, 1, LG);
                         }
                     }
                     Terrain::Wall => {
-                        ui::rect(px, py, TS, TS, ui::LGRAY);
+                        cv.rect(px, py, T, T, LG);
                         for r in 0..3 {
-                            let off = if r % 2 == 0 { 0.0 } else { 5.0 };
-                            ui::rect(px, py + r as f32 * 7.0, TS, 1.0, ui::DGRAY);
-                            ui::rect(px + off + 4.0, py + r as f32 * 7.0, 1.0, 7.0, ui::DGRAY);
-                            ui::rect(px + off + 14.0, py + r as f32 * 7.0, 1.0, 7.0, ui::DGRAY);
+                            cv.hline(px, px + T - 1, py + r * 4, DG);
+                            let off = if (r + y) % 2 == 0 { 2 } else { 6 };
+                            cv.vline(px + off, py + r * 4, py + r * 4 + 3, DG);
                         }
                     }
                     Terrain::Gate => {
-                        ui::rect(px, py, TS, TS, ui::LGRAY);
-                        ui::rect(px + 3.0, py, TS - 6.0, TS, ui::BROWN);
-                        for k in 0..3 {
-                            ui::rect(px + 5.0 + k as f32 * 4.0, py, 1.0, TS, Color::new(0.4, 0.2, 0.0, 1.0));
-                        }
+                        cv.rect(px, py, T, T, LG);
+                        cv.rect(px + 1, py, T - 2, T, N);
+                        cv.vline(px + 4, py, py + T - 1, K);
+                        cv.vline(px + 7, py, py + T - 1, K);
                     }
                     Terrain::Town => {
-                        ui::rect(px, py, TS, TS, Color::new(0.75, 0.68, 0.5, 1.0));
-                        if (x + y) % 2 == 0 || h > 0.5 {
-                            ui::rect(px + 3.0, py + 8.0, 14.0, 10.0, ui::WHITE);
-                            draw_triangle(vec2(px + 1.0, py + 9.0), vec2(px + 10.0, py + 2.0), vec2(px + 19.0, py + 9.0), ui::RED);
-                            ui::rect(px + 8.0, py + 12.0, 4.0, 6.0, ui::BROWN);
+                        cv.rect(px, py, T, T, Sp(LG, Y));
+                        if (x + y) % 2 == 0 || h > 48 {
+                            cv.rect(px + 1, py + 4, 7, 5, W);
+                            cv.rect(px + 1, py + 3, 7, 1, R);
+                            cv.rect(px + 2, py + 2, 5, 1, R);
+                            cv.set(px + 4, py + 7, K);
+                            cv.set(px + 4, py + 8, K);
                         }
                     }
                 }
             }
         }
+        cv.present(0.0, 0.0, ui::W, FIELD_H);
         // church tower + flag inside town
         let (tx, ty) = (29.5 * TS, (self.gate_y as f32 + 0.5) * TS);
         ui::rect(tx - 5.0, ty - 14.0, 12.0, 26.0, ui::WHITE);
@@ -919,7 +931,7 @@ impl LandBattle {
         let body = if g.flash > 0.0 && (g.flash * 20.0) as i32 % 2 == 0 { ui::WHITE } else { body };
         let n = (g.men / 10 + 1).clamp(1, 6);
         let offs = [(5.0, 6.0), (11.0, 6.0), (17.0, 6.0), (5.0, 14.0), (11.0, 14.0), (17.0, 14.0)];
-        let skin = Color::new(0.95, 0.75, 0.55, 1.0);
+        let skin = ui::LRED;
         let bob = if g.routed { (self.time * 12.0).sin() * 1.5 } else { 0.0 };
         for &(ox, oy) in offs.iter().take(n as usize) {
             let (fx, fy) = (px + ox - 2.0, py + oy - 3.0 + bob);
@@ -941,7 +953,15 @@ impl LandBattle {
                 }
             }
         }
-        // strength banner
+    }
+
+    /// Strength flag above a group, drawn at full resolution.
+    fn draw_group_label(&self, gi: usize) {
+        let g = &self.groups[gi];
+        if !g.alive {
+            return;
+        }
+        let (px, py) = (g.fx * TS, g.fy * TS);
         let label = format!("{}", g.men);
         let w = ui::measure(&label, 8.0) + 4.0;
         let bg = if g.side == Side::Player { ui::BLUE } else { ui::RED };
@@ -953,14 +973,14 @@ impl LandBattle {
     }
 
     fn draw_status(&self) {
-        ui::rect(0.0, FIELD_H, ui::W, ui::H - FIELD_H, ui::BLACK);
-        ui::rect(0.0, FIELD_H, ui::W, 1.0, ui::BROWN);
+        ui::rect(0.0, FIELD_H, ui::W, ui::H - FIELD_H, ui::BLUE);
+        ui::rect(2.0, FIELD_H + 2.0, ui::W - 4.0, ui::H - FIELD_H - 4.0, ui::LGRAY);
         for i in 0..3 {
             let g = &self.groups[i];
             let x = 4.0 + i as f32 * 150.0;
             let y = FIELD_H + 4.0;
             if i == self.selected && g.active() {
-                ui::rect(x - 2.0, y - 1.0, 146.0, 13.0, ui::BLUE);
+                ui::rect(x - 2.0, y - 1.0, 146.0, 13.0, ui::HILITE);
             }
             let state = if !g.alive {
                 "lost".to_string()
@@ -969,7 +989,7 @@ impl LandBattle {
             } else {
                 format!("{}", g.men)
             };
-            let col = if g.active() { ui::WHITE } else { ui::DGRAY };
+            let col = if !g.active() { ui::DGRAY } else if i == self.selected { ui::WHITE } else { ui::BLUE };
             ui::text(&format!("{} {} {}", i + 1, g.kind.name(), state), x, y, 10.0, col);
             if g.active() {
                 let ready = (1.0 - g.reload.max(0.0) / 3.5).clamp(0.0, 1.0);
@@ -978,13 +998,13 @@ impl LandBattle {
             }
         }
         let foes = self.total_men(Side::Enemy);
-        ui::text_right(&format!("{} {}: {}", self.setup.nation.adj(), "soldiers", foes), ui::W - 4.0, FIELD_H + 4.0, 10.0, ui::LRED);
+        ui::text_right(&format!("{} {}: {}", self.setup.nation.adj(), "soldiers", foes), ui::W - 4.0, FIELD_H + 4.0, 10.0, ui::RED);
         ui::text(
             "Tab/1-3 select group   Arrows move   Space fire   Reach the gate!   Esc retreat",
             4.0,
             FIELD_H + 22.0,
             10.0,
-            ui::LGRAY,
+            ui::BLACK,
         );
     }
 
@@ -999,15 +1019,25 @@ impl LandBattle {
     }
 
     pub fn draw(&self) {
-        self.draw_terrain();
+        ui::pixelated(|| {
+            self.draw_terrain();
+            for gi in 0..self.groups.len() {
+                self.draw_group(gi);
+            }
+            for p in &self.particles {
+                if let Particle::Smoke { x, y, t, r } = p {
+                    if *t > 0.15 {
+                        draw_circle(*x, *y, *r, if *t > 0.5 { ui::WHITE } else { ui::LGRAY });
+                    }
+                }
+            }
+        });
         for gi in 0..self.groups.len() {
-            self.draw_group(gi);
+            self.draw_group_label(gi);
         }
         for p in &self.particles {
             match p {
-                Particle::Smoke { x, y, t, r } => {
-                    draw_circle(*x, *y, *r, Color::new(0.9, 0.9, 0.9, (t / 0.8).clamp(0.0, 0.8)));
-                }
+                Particle::Smoke { .. } => {}
                 Particle::Number { x, y, t, text, color } => {
                     let mut c = *color;
                     c.a = t.clamp(0.0, 1.0);

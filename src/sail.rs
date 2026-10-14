@@ -232,7 +232,7 @@ impl Sail {
             let pos = vec2((bx + off.x).rem_euclid(W), (by + off.y).rem_euclid(VIEW_H));
             let (lon, lat) = geo::from_grid(gx0 + pos.x / ZOOM, gy0 + pos.y / ZOOM);
             if geo.tile_at(lon, lat) == Tile::Sea {
-                draw_line(pos.x, pos.y, pos.x + wd.x * 5.0, pos.y + wd.y * 5.0, 1.0, Color::new(0.6, 0.75, 1.0, 0.6));
+                draw_line(pos.x, pos.y, pos.x + wd.x * 5.0, pos.y + wd.y * 5.0, 1.0, LCYAN);
             }
         }
         // Storm.
@@ -241,7 +241,7 @@ impl Sail {
             let r = st.radius * 10.0 * ZOOM;
             for k in 0..5 {
                 let a = self.wave_t * 0.8 + k as f32 * 1.3;
-                draw_circle(c.x + a.cos() * r * 0.4, c.y + a.sin() * r * 0.4, r * (0.5 + 0.1 * k as f32), Color::new(0.3, 0.3, 0.35, 0.25));
+                draw_circle(c.x + a.cos() * r * 0.4, c.y + a.sin() * r * 0.4, r * (0.5 + 0.1 * k as f32), Color::new(0.333, 0.333, 0.333, 0.35));
             }
         }
         // Towns.
@@ -251,7 +251,7 @@ impl Sail {
             if !visible(s) {
                 continue;
             }
-            let stone = Color::new(0.75, 0.72, 0.65, 1.0);
+            let stone = LGRAY;
             rect(s.x - 7.0, s.y - 6.0, 14.0, 10.0, stone);
             rect(s.x - 9.0, s.y - 9.0, 5.0, 5.0, stone);
             rect(s.x + 4.0, s.y - 9.0, 5.0, 5.0, stone);
@@ -266,7 +266,7 @@ impl Sail {
             if !visible(sc) {
                 continue;
             }
-            let hull = Color::new(0.4, 0.22, 0.08, 1.0);
+            let hull = BROWN;
             let sail = if s.nation == Nation::Pirate { DGRAY } else { WHITE };
             let scale = s.ship.kind.spec().size;
             art::ship_top(sc.x, sc.y, -heading_to_screen(s.heading), scale * 1.4, hull, sail);
@@ -279,14 +279,16 @@ impl Sail {
             let back = vec2(-w.player.heading.cos(), -w.player.heading.sin()) * 10.0 * k as f32;
             let side = vec2(-w.player.heading.sin(), w.player.heading.cos()) * if k % 2 == 0 { 6.0 } else { -6.0 };
             let q = pc + back + side;
-            art::ship_top(q.x, q.y, w.player.heading, 1.0, Color::new(0.35, 0.2, 0.08, 1.0), Color::new(0.9, 0.9, 0.8, 1.0));
+            art::ship_top(q.x, q.y, w.player.heading, 1.0, BROWN, WHITE);
         }
-        art::ship_top(pc.x, pc.y, w.player.heading, w.player.flagship().kind.spec().size * 1.6, Color::new(0.5, 0.3, 0.1, 1.0), YELLOW);
+        art::ship_top(pc.x, pc.y, w.player.heading, w.player.flagship().kind.spec().size * 1.6, BROWN, YELLOW);
         // Wake.
         let back = vec2(-w.player.heading.cos(), -w.player.heading.sin());
         for k in 1..5 {
             let q = pc + back * (10.0 + k as f32 * 5.0);
-            draw_circle(q.x, q.y, 1.2, Color::new(1.0, 1.0, 1.0, 0.5 - k as f32 * 0.1));
+            if k < 4 {
+                draw_circle(q.x, q.y, 1.2, if k < 2 { WHITE } else { LCYAN });
+            }
         }
 
         self.draw_compass(w);
@@ -306,7 +308,7 @@ impl Sail {
             for (i, l) in lines.iter().enumerate() {
                 ui::text(l, 124.0, y + 12.0 + i as f32 * 16.0, 13.0, INK);
             }
-            ui::text_right("(press any key)", 520.0, y + h - 18.0, 10.0, BROWN);
+            ui::text_right("(press any key)", 520.0, y + h - 18.0, 10.0, BLACK);
         }
         if let Some(m) = &self.menu {
             ui::panel(180.0, 100.0, 280.0, 170.0, BLUE, LCYAN);
@@ -317,8 +319,8 @@ impl Sail {
 
     fn draw_compass(&self, w: &World) {
         let c = vec2(W - 36.0, 36.0);
-        draw_circle(c.x, c.y, 28.0, Color::new(0.93, 0.85, 0.64, 0.85));
-        draw_circle_lines(c.x, c.y, 28.0, 2.0, INK);
+        draw_circle(c.x, c.y, 29.0, BLUE);
+        draw_circle(c.x, c.y, 27.0, LGRAY);
         ui::text_center("N", c.x, c.y - 27.0, 9.0, INK);
         let d = vec2(w.wind_dir.cos(), w.wind_dir.sin());
         let a = c - d * 20.0;
@@ -334,27 +336,27 @@ impl Sail {
 
     fn draw_status(&self, w: &World, geo: &Geo) {
         let y = VIEW_H;
-        ui::rect(0.0, y, W, H - y, Color::new(0.1, 0.06, 0.02, 1.0));
-        ui::rect(0.0, y, W, 2.0, BROWN);
+        ui::rect(0.0, y, W, H - y, BLUE);
+        ui::rect(2.0, y + 2.0, W - 4.0, H - y - 4.0, LGRAY);
         let pl = &w.player;
         let angle = angle_diff(pl.heading, w.wind_dir);
         let speed = pl.fleet_speed(angle, w.wind_strength);
         let knots = (speed * 8.0).round() as i32;
-        ui::text(&w.date_string(), 6.0, y + 6.0, 12.0, YELLOW);
+        ui::text(&w.date_string(), 6.0, y + 6.0, 12.0, BLACK);
         let near = w.nearest_town(pl.pos);
         let loc = format!("Near {}", w.towns[near].name());
-        ui::text(&loc, 6.0, y + 24.0, 11.0, LGRAY);
+        ui::text(&loc, 6.0, y + 24.0, 11.0, BLUE);
         let col = |x: f32, label: &str, val: String, c: Color| {
-            ui::text(label, x, y + 6.0, 10.0, LGRAY);
+            ui::text(label, x, y + 6.0, 10.0, BLACK);
             ui::text(&val, x, y + 22.0, 12.0, c);
         };
-        col(170.0, "Gold", format!("{}", pl.gold), YELLOW);
-        col(225.0, "Crew", format!("{}", pl.crew), WHITE);
-        col(270.0, "Mood", pl.morale_word().to_string(), if pl.morale < 25 { LRED } else if pl.morale < 50 { YELLOW } else { LGREEN });
-        col(330.0, "Food", format!("{}", pl.food), if pl.food < pl.crew / 20 + 3 { LRED } else { WHITE });
-        col(375.0, "Ships", format!("{}", pl.ships.len()), WHITE);
-        col(420.0, "Hull", format!("{}%", pl.flagship().hull), if pl.flagship().hull < 40 { LRED } else { WHITE });
-        col(465.0, "Speed", format!("{knots} kn"), WHITE);
+        col(170.0, "Gold", format!("{}", pl.gold), BLUE);
+        col(225.0, "Crew", format!("{}", pl.crew), BLUE);
+        col(270.0, "Mood", pl.morale_word().to_string(), if pl.morale < 25 { RED } else if pl.morale < 50 { BLUE } else { GREEN });
+        col(330.0, "Food", format!("{}", pl.food), if pl.food < pl.crew / 20 + 3 { RED } else { BLUE });
+        col(375.0, "Ships", format!("{}", pl.ships.len()), BLUE);
+        col(420.0, "Hull", format!("{}%", pl.flagship().hull), if pl.flagship().hull < 40 { RED } else { BLUE });
+        col(465.0, "Speed", format!("{knots} kn"), BLUE);
         let shallow = geo.tile_at(pl.pos.0, pl.pos.1) == Tile::Shallow;
         let mut ix = 6.0;
         if shallow {
@@ -364,8 +366,8 @@ impl Sail {
         if self.fast {
             ui::text_shadow(">> FAST SAILING", ix, 6.0, 11.0, YELLOW);
         }
-        ui::text_right("Arrows steer  M map  I info", W - 4.0, y + 6.0, 9.0, LGRAY);
-        ui::text_right("D dig  F fast  Space pause  Esc menu", W - 4.0, y + 22.0, 9.0, LGRAY);
+        ui::text_right("Arrows steer  M map  I info", W - 6.0, y + 6.0, 9.0, BLACK);
+        ui::text_right("D dig  F fast  Space pause  Esc menu", W - 6.0, y + 22.0, 9.0, BLACK);
     }
 }
 

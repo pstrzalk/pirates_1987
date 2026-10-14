@@ -58,7 +58,7 @@ impl Ending {
         let mut y = 84.0;
         for (label, pts) in &self.parts {
             ui::text(label, 54.0, y, 12.0, INK);
-            ui::text_right(&format!("{pts}"), 480.0, y, 12.0, BROWN);
+            ui::text_right(&format!("{pts}"), 480.0, y, 12.0, BLACK);
             y += 17.0;
         }
         draw_line(54.0, y + 2.0, 480.0, y + 2.0, 1.0, INK);
@@ -68,6 +68,6 @@ impl Ending {
         for (i, l) in lines.iter().enumerate() {
             ui::text(l, 54.0, y + 40.0 + i as f32 * 18.0, 14.0, RED);
         }
-        ui::text("Press Enter to return to the title screen.", 54.0, 352.0, 11.0, BROWN);
+        ui::text("Press Enter to return to the title screen.", 54.0, 352.0, 11.0, BLACK);
     }
 }

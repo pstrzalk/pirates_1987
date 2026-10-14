@@ -1,6 +1,5 @@
 //! Title screen and the new career wizard.
 
-use crate::art;
 use crate::data::*;
 use crate::game::{Action, SAVE_FILE};
 use crate::geo::Geo;
@@ -169,27 +168,13 @@ impl Title {
 
     pub fn draw(&self, _geo: &Geo) {
         let t = get_time() as f32;
-        // Sunset seascape.
-        for i in 0..20 {
-            let k = i as f32 / 19.0;
-            rect(0.0, i as f32 * 12.0, W, 13.0, ui::lerp_color(Color::new(0.1, 0.05, 0.3, 1.0), Color::new(1.0, 0.55, 0.2, 1.0), k));
+        title_scene((t * 6.0) as i32).present(0.0, 0.0, W, H);
+        // Logo: red letters with a dark outline, as on the original's title.
+        for (dx, dy) in [(-2.0, 0.0), (2.0, 0.0), (0.0, -2.0), (0.0, 2.0), (3.0, 3.0)] {
+            ui::text_center("PIRATES!", W * 0.72 + dx, 22.0 + dy, 72.0, BLACK);
         }
-        draw_circle(W * 0.75, 215.0, 40.0, Color::new(1.0, 0.85, 0.4, 1.0));
-        rect(0.0, 230.0, W, 170.0, Color::new(0.05, 0.12, 0.35, 1.0));
-        for r in 0..10 {
-            let y = 236.0 + r as f32 * 16.0;
-            let off = (t * 10.0 + r as f32 * 13.0) % 40.0;
-            let mut x = -40.0 + off;
-            while x < W {
-                draw_line(x, y, x + 12.0, y, 1.0, Color::new(1.0, 0.7, 0.4, 0.4));
-                x += 40.0;
-            }
-        }
-        art::ship_side(150.0 + (t * 0.7).sin() * 4.0, 300.0 + (t * 1.5).sin() * 2.0, 1.1, ShipKind::FastGalleon, Nation::Pirate, true);
-
-        ui::text_center("PIRATES!", W / 2.0 + 3.0, 20.0, 64.0, BLACK);
-        ui::text_center("PIRATES!", W / 2.0, 17.0, 64.0, YELLOW);
-        ui::text_center("A tribute to the 1987 classic of adventure on the Spanish Main", W / 2.0, 82.0, 12.0, WHITE);
+        ui::text_center("PIRATES!", W * 0.72, 22.0, 72.0, ui::LRED);
+        ui::text_center("A tribute to the 1987 classic of adventure on the Spanish Main", W / 2.0, 364.0, 12.0, ui::LBLUE);
 
         let (px, py, pw) = (300.0, 110.0, 320.0);
         match self.step {
@@ -211,7 +196,7 @@ impl Title {
                 rect(px + 16.0, py + 46.0, pw - 32.0, 24.0, WHITE);
                 let cursor = if ui::blink() { "_" } else { "" };
                 ui::text(&format!("{}{}", self.name.value, cursor), px + 22.0, py + 50.0, 16.0, BLACK);
-                ui::text("Type a name and press Enter.", px + 16.0, py + 86.0, 11.0, BROWN);
+                ui::text("Type a name and press Enter.", px + 16.0, py + 86.0, 11.0, BLACK);
             }
             _ => {
                 let (title, desc) = match self.step {
@@ -233,14 +218,67 @@ impl Title {
                     ui::text(title, px + 14.0, y, 14.0, RED);
                     y += 20.0;
                 }
-                self.menu.draw(px + 8.0, y, pw - 16.0, 13.0, INK, BROWN, WHITE);
+                self.menu.draw(px + 8.0, y, pw - 16.0, 13.0, INK, HILITE, WHITE);
                 y += mh + 8.0;
                 for l in desc_lines {
-                    ui::text(&l, px + 14.0, y, 11.0, BROWN);
+                    ui::text(&l, px + 14.0, y, 11.0, BLACK);
                     y += 13.0;
                 }
             }
         }
         ui::text_center("Arrows + Enter to choose, Esc to go back", W / 2.0, H - 16.0, 10.0, LGRAY);
     }
+}
+
+/// The title picture after the 1987 original: a galleon in black silhouette
+/// against a moonlit night sky, painted in EGA pixels.
+fn title_scene(f: i32) -> crate::pixel::Canvas {
+    use crate::pixel::{Canvas, Paint::*, *};
+    let mut cv = Canvas::new(320, 200);
+    cv.fill(B);
+    cv.rect(0, 120, 320, 30, Ck(B, LB));
+    cv.rect(0, 140, 320, 10, LB);
+    for (i, (x, y)) in [(200, 14), (232, 30), (262, 10), (300, 44), (180, 52), (286, 72), (214, 84), (306, 18)].iter().enumerate() {
+        cv.set(*x, *y, if (f / 4 + i as i32) % 5 == 0 { LB } else { W });
+    }
+    // Crescent moon.
+    cv.ellipse(306.0, 26.0, 9.0, 9.0, W);
+    cv.ellipse(310.0, 22.0, 8.0, 8.0, B);
+    // Sea.
+    cv.rect(0, 150, 320, 50, K);
+    for r in 0..8 {
+        let y = 153 + r * 6;
+        let mut x = (r * 23 + f * (1 + r % 2)) % 40 - 40;
+        while x < 320 {
+            cv.hline(x, x + 8 + r, y, B);
+            x += 40;
+        }
+    }
+    // The galleon: hull, high stern castle, three masts of black sails with
+    // moonlit edges.
+    let bob = if (f / 8) % 2 == 0 { 0 } else { 1 };
+    let wl = 152.0 + bob as f32;
+    cv.poly(&[(14.0, wl - 30.0), (40.0, wl - 30.0), (44.0, wl - 18.0), (150.0, wl - 16.0), (168.0, wl - 26.0), (150.0, wl + 4.0), (30.0, wl + 4.0)], K);
+    cv.line(168, wl as i32 - 26, 196, wl as i32 - 42, K);
+    cv.line(167, wl as i32 - 26, 195, wl as i32 - 42, K);
+    for (mx, top, sw) in [(52, 18, 26), (100, 4, 34), (142, 24, 24)] {
+        cv.rect(mx - 1, top, 3, wl as i32 - 16 - top, K);
+        for k in 0..3 {
+            let ty = top + 6 + k * 26;
+            let w = sw - k * 2 + 6 * k;
+            let (l, r) = ((mx - w / 2) as f32, (mx + w / 2) as f32);
+            let belly = 7.0;
+            cv.poly(&[(l, ty as f32), (r, ty as f32), (r + belly, ty as f32 + 11.0), (r, ty as f32 + 22.0), (l, ty as f32 + 22.0), (l + belly, ty as f32 + 11.0)], K);
+            // Moonlight catches the leading edge of each sail.
+            cv.line(r as i32, ty, r as i32 + 7, ty + 11, W);
+            cv.line(r as i32 + 7, ty + 11, r as i32, ty + 21, LB);
+            cv.line(r as i32 - 2, ty + 2, r as i32 + 4, ty + 11, W);
+        }
+        cv.rect(mx - sw / 2 - 2, top + 4, sw + 4, 2, K);
+    }
+    cv.poly(&[(102.0, 4.0), (116.0, 8.0), (102.0, 12.0)], K);
+    // Stern lanterns.
+    cv.set(18, wl as i32 - 33, Y);
+    cv.set(38, wl as i32 - 33, Y);
+    cv
 }

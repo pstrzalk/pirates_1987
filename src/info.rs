@@ -63,7 +63,8 @@ impl Info {
         let mut x = 22.0;
         for (i, p) in PAGES.iter().chain(std::iter::once(&"Map")).enumerate() {
             let tw = ui::measure(p, 11.0) + 12.0;
-            rect(x, 18.0, tw, 16.0, if i == self.page { BROWN } else { Color::new(0.8, 0.7, 0.5, 1.0) });
+            rect(x, 18.0, tw, 16.0, if i == self.page { HILITE } else { WHITE });
+            frame(x, 18.0, tw, 16.0, BLUE, 1.0);
             ui::text(p, x + 6.0, 20.0, 11.0, if i == self.page { WHITE } else { INK });
             x += tw + 4.0;
         }
@@ -76,19 +77,19 @@ impl Info {
             4 => self.log(w, y),
             _ => self.treasure(w, geo, y),
         }
-        ui::text_center("Left/Right: pages   Up/Down: scroll   Esc: return", W / 2.0, H - 26.0, 10.0, BROWN);
+        ui::text_center("Left/Right: pages   Up/Down: scroll   Esc: return", W / 2.0, H - 26.0, 10.0, BLACK);
     }
 
     fn fleet(&self, w: &World, y: f32) {
         let pl = &w.player;
         ui::text(&format!("{} -- {}", pl.title(), w.date_string()), 26.0, y, 15.0, RED);
         let mut yy = y + 24.0;
-        ui::text("Ship", 30.0, yy, 11.0, BROWN);
-        ui::text("Type", 170.0, yy, 11.0, BROWN);
-        ui::text_right("Guns", 380.0, yy, 11.0, BROWN);
-        ui::text_right("Hull", 440.0, yy, 11.0, BROWN);
-        ui::text_right("Cargo", 510.0, yy, 11.0, BROWN);
-        ui::text_right("Crew max", 600.0, yy, 11.0, BROWN);
+        ui::text("Ship", 30.0, yy, 11.0, BLACK);
+        ui::text("Type", 170.0, yy, 11.0, BLACK);
+        ui::text_right("Guns", 380.0, yy, 11.0, BLACK);
+        ui::text_right("Hull", 440.0, yy, 11.0, BLACK);
+        ui::text_right("Cargo", 510.0, yy, 11.0, BLACK);
+        ui::text_right("Crew max", 600.0, yy, 11.0, BLACK);
         yy += 16.0;
         for (i, s) in pl.ships.iter().enumerate() {
             let spec = s.kind.spec();
@@ -136,11 +137,11 @@ impl Info {
             yy += 16.0;
         }
         yy += 8.0;
-        ui::text("Nation", 30.0, yy, 11.0, BROWN);
-        ui::text("Title", 150.0, yy, 11.0, BROWN);
-        ui::text("Land", 260.0, yy, 11.0, BROWN);
-        ui::text("Attitude", 330.0, yy, 11.0, BROWN);
-        ui::text("Commission", 460.0, yy, 11.0, BROWN);
+        ui::text("Nation", 30.0, yy, 11.0, BLACK);
+        ui::text("Title", 150.0, yy, 11.0, BLACK);
+        ui::text("Land", 260.0, yy, 11.0, BLACK);
+        ui::text("Attitude", 330.0, yy, 11.0, BLACK);
+        ui::text("Commission", 460.0, yy, 11.0, BLACK);
         yy += 16.0;
         for n in [Nation::Spain, Nation::England, Nation::France, Nation::Holland, Nation::Pirate] {
             let i = n.idx();
@@ -164,7 +165,7 @@ impl Info {
             yy += 15.0;
         }
         yy += 10.0;
-        ui::text("Your lost family:", 30.0, yy, 12.0, BROWN);
+        ui::text("Your lost family:", 30.0, yy, 12.0, BLACK);
         yy += 15.0;
         for k in 0..4 {
             let s = if pl.family_found[k] {
@@ -204,7 +205,7 @@ impl Info {
             }
         }
         let mut ny = yy + 24.0 + 4.0 * 22.0 + 16.0;
-        ui::text("Recent news:", 30.0, ny, 12.0, BROWN);
+        ui::text("Recent news:", 30.0, ny, 12.0, BLACK);
         ny += 16.0;
         for n in w.news.iter().rev().take(8) {
             ui::text(&format!("- {n}"), 36.0, ny, 11.0, INK);
@@ -225,7 +226,7 @@ impl Info {
             let n = t.nation.unwrap();
             draw_flag(n, x, yy + 1.0, 14.0, 9.0);
             ui::text(t.name(), x + 20.0, yy, 11.0, INK);
-            ui::text(&format!("{} {}", t.size_word(), t.wealth_word().to_lowercase()), x + 140.0, yy, 10.0, BROWN);
+            ui::text(&format!("{} {}", t.size_word(), t.wealth_word().to_lowercase()), x + 140.0, yy, 10.0, BLACK);
         }
     }
 
@@ -279,7 +280,7 @@ impl Info {
             let qx = mx + (q % 2) as f32 * size / 2.0;
             let qy = my + (q / 2) as f32 * size / 2.0;
             rect(qx, qy, size / 2.0, size / 2.0, PARCHMENT);
-            ui::text_center("?", qx + size / 4.0, qy + size / 4.0 - 12.0, 24.0, BROWN);
+            ui::text_center("?", qx + size / 4.0, qy + size / 4.0 - 12.0, 24.0, BLACK);
         }
         frame(mx - 4.0, my - 4.0, size + 8.0, size + 8.0, INK, 2.0);
         if pl.map_pieces >= 3 {

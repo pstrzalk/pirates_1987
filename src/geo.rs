@@ -300,41 +300,50 @@ impl Geo {
 
     fn render(tiles: &[Tile], inland: &[u8]) -> Texture2D {
         let (w, h) = (GW * TPX, GH * TPX);
-        let mut img = Image::gen_image_color(w as u16, h as u16, ui::SEA);
+        let mut img = Image::gen_image_color(w as u16, h as u16, ui::LBLUE);
         for j in 0..GH {
             for i in 0..GW {
                 let k = j * GW + i;
                 for py in 0..TPX {
                     for px in 0..TPX {
                         let n = hash(i * TPX + px, j * TPX + py, 7);
+                        // EGA colours, with the grass tufts and dithered
+                        // hills of the original's coastlines.
+                        let (x, y) = (i * TPX + px, j * TPX + py);
                         let c = match tiles[k] {
                             Tile::Sea => {
-                                if n > 0.97 {
-                                    Color::new(0.15, 0.27, 0.68, 1.0)
+                                if n > 0.99 {
+                                    ui::LCYAN
                                 } else {
-                                    ui::SEA
+                                    ui::LBLUE
                                 }
                             }
                             Tile::Shallow => {
-                                if n > 0.9 {
-                                    Color::new(0.28, 0.5, 0.86, 1.0)
+                                if (x + y) % 2 == 0 && n > 0.4 {
+                                    ui::LCYAN
                                 } else {
-                                    ui::SHALLOW
+                                    ui::LBLUE
                                 }
                             }
                             Tile::Land => {
                                 let d = inland[k];
                                 let t = hash(i / 3, j / 3, 11);
-                                if d <= 1 {
-                                    if n > 0.5 { Color::new(0.85, 0.75, 0.45, 1.0) } else { Color::new(0.2, 0.62, 0.15, 1.0) }
-                                } else if d > 14 && t > 0.35 {
-                                    if n > 0.6 { Color::new(0.55, 0.45, 0.35, 1.0) } else { Color::new(0.45, 0.35, 0.25, 1.0) }
-                                } else if d > 6 && t > 0.5 {
-                                    if n > 0.5 { Color::new(0.35, 0.45, 0.15, 1.0) } else { Color::new(0.25, 0.4, 0.1, 1.0) }
-                                } else if n > 0.75 {
-                                    Color::new(0.05, 0.45, 0.08, 1.0)
+                                if d > 14 && t > 0.35 {
+                                    if (x + y) % 2 == 0 { ui::BROWN } else { ui::GREEN }
                                 } else {
-                                    Color::new(0.1, 0.55, 0.12, 1.0)
+                                    // Sparse grass tufts ("v") or, inland, clumps of trees.
+                                    let (cx, cy, lx, ly) = (x / 6, y / 6, x % 6, y % 6);
+                                    let ch = hash(cx, cy, 5);
+                                    let forest = d > 6 && t > 0.5;
+                                    let tuft = (ly == 2 && (lx == 1 || lx == 3)) || (ly == 3 && lx == 2);
+                                    let tree = (1..=3).contains(&lx) && (1..=2).contains(&ly) || (lx == 2 && ly == 3);
+                                    if forest && tree && ch > 0.2 {
+                                        if ly == 3 { ui::BROWN } else { ui::LGREEN }
+                                    } else if !forest && tuft && ch > 0.55 {
+                                        if ch > 0.8 { ui::YELLOW } else { ui::LGREEN }
+                                    } else {
+                                        ui::GREEN
+                                    }
                                 }
                             }
                         };

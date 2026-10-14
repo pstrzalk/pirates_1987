@@ -726,8 +726,33 @@ impl NavalBattle {
     }
 
     pub fn draw(&self) {
+        ui::pixelated(|| self.draw_scene());
+        if self.fort.is_some() {
+            self.draw_coast_labels();
+        }
+        if let Some(e) = &self.enemy {
+            let s = self.to_screen(e.pos);
+            if s.x < 0.0 || s.x > ui::W || s.y < 0.0 || s.y > BAR_Y {
+                let (p, d) = self.edge_marker(s);
+                let dist = e.pos.distance(self.player.pos) as i32;
+                ui::text_center(&format!("{dist}"), p.x - d.x * 16.0, p.y - d.y * 16.0 - 4.0, 8.0, ui::WHITE);
+            }
+        }
+        self.draw_hud();
+    }
+
+    /// Where the off-screen enemy marker sits, and the direction to the enemy.
+    fn edge_marker(&self, s: Vec2) -> (Vec2, Vec2) {
+        let c = vec2(VIEW_CX, VIEW_CY);
+        let d = (s - c).normalize_or_zero();
+        let tx = if d.x.abs() > 1e-3 { (VIEW_CX - 14.0) / d.x.abs() } else { f32::MAX };
+        let ty = if d.y.abs() > 1e-3 { (VIEW_CY - 14.0) / d.y.abs() } else { f32::MAX };
+        (c + d * tx.min(ty), d)
+    }
+
+    fn draw_scene(&self) {
         // Sea
-        ui::rect(0.0, 0.0, ui::W, BAR_Y, ui::SEA);
+        ui::rect(0.0, 0.0, ui::W, BAR_Y, ui::LBLUE);
         let cell = 32.0;
         let x0 = ((self.cam.x - VIEW_CX) / cell).floor() as i32 - 1;
         let y0 = ((self.cam.y - VIEW_CY) / cell).floor() as i32 - 1;
@@ -744,7 +769,7 @@ impl NavalBattle {
                     continue;
                 }
                 let w = 3.0 + ph * 1.5;
-                draw_line(s.x - w, s.y, s.x + w, s.y, 1.0, Color::new(0.25, 0.4, 0.85, 1.0));
+                draw_line(s.x - w * 0.5, s.y, s.x + w * 0.5, s.y, 2.0, ui::LCYAN);
             }
         }
 
@@ -756,7 +781,9 @@ impl NavalBattle {
         for p in self.parts.iter().filter(|p| p.kind == PKind::Wake) {
             let s = self.to_screen(p.pos);
             let t = p.life / p.max;
-            draw_circle(s.x, s.y, 1.0 + (1.0 - t) * 2.0, Color::new(0.7, 0.8, 1.0, 0.6 * t));
+            if t > 0.3 {
+                draw_circle(s.x, s.y, 1.0 + (1.0 - t) * 2.0, if t > 0.7 { ui::WHITE } else { ui::LCYAN });
+            }
         }
 
         if let Some(e) = &self.enemy {
@@ -766,20 +793,20 @@ impl NavalBattle {
 
         for b in &self.balls {
             let s = self.to_screen(b.pos);
-            draw_circle(s.x, s.y, 1.6, ui::BLACK);
+            draw_circle(s.x, s.y, 2.0, ui::BLACK);
         }
         for p in self.parts.iter().filter(|p| p.kind != PKind::Wake) {
             let s = self.to_screen(p.pos);
             let t = p.life / p.max;
             match p.kind {
-                PKind::Smoke => draw_circle(s.x, s.y, 3.0 + (1.0 - t) * 6.0, Color::new(0.85, 0.85, 0.85, 0.55 * t)),
+                PKind::Smoke => draw_circle(s.x, s.y, 3.0 + (1.0 - t) * 6.0, if t > 0.5 { ui::WHITE } else { ui::LGRAY }),
                 PKind::Splash => {
-                    draw_circle_lines(s.x, s.y, 2.0 + (1.0 - t) * 6.0, 1.0, Color::new(1.0, 1.0, 1.0, t));
-                    draw_circle(s.x, s.y, 1.5 * t + 0.5, Color::new(1.0, 1.0, 1.0, t));
+                    draw_circle_lines(s.x, s.y, 2.0 + (1.0 - t) * 6.0, 2.0, if t > 0.5 { ui::WHITE } else { ui::LCYAN });
+                    draw_circle(s.x, s.y, 1.5 * t + 1.0, ui::WHITE);
                 }
                 PKind::Flash => {
-                    draw_circle(s.x, s.y, 7.0 * t + 2.0, Color::new(1.0, 0.8, 0.2, t));
-                    draw_circle(s.x, s.y, 3.5 * t + 1.0, Color::new(1.0, 1.0, 0.8, t));
+                    draw_circle(s.x, s.y, 7.0 * t + 2.0, ui::YELLOW);
+                    draw_circle(s.x, s.y, 3.5 * t + 1.0, ui::WHITE);
                 }
                 PKind::Wake => {}
             }
@@ -789,18 +816,14 @@ impl NavalBattle {
         if let Some(e) = &self.enemy {
             let s = self.to_screen(e.pos);
             if s.x < 0.0 || s.x > ui::W || s.y < 0.0 || s.y > BAR_Y {
-                let c = vec2(VIEW_CX, VIEW_CY);
-                let d = (s - c).normalize_or_zero();
-                let tx = if d.x.abs() > 1e-3 { (VIEW_CX - 14.0) / d.x.abs() } else { f32::MAX };
-                let ty = if d.y.abs() > 1e-3 { (VIEW_CY - 14.0) / d.y.abs() } else { f32::MAX };
-                let p = c + d * tx.min(ty);
+                let (p, d) = self.edge_marker(s);
                 let a = d.to_angle();
                 draw_triangle(p + dir(a) * 8.0, p + dir(a + 2.4) * 7.0, p + dir(a - 2.4) * 7.0, e.nation.color());
-                let dist = e.pos.distance(self.player.pos) as i32;
-                ui::text_center(&format!("{dist}"), p.x - d.x * 16.0, p.y - d.y * 16.0 - 4.0, 8.0, ui::WHITE);
             }
         }
+    }
 
+    fn draw_hud(&self) {
         self.draw_wind();
         self.draw_status();
 
@@ -829,15 +852,15 @@ impl NavalBattle {
         let lines = ui::wrap(msg, 14.0, 440.0);
         let h = lines.len() as f32 * 18.0 + 20.0;
         let y = 140.0 - h / 2.0;
-        ui::panel(90.0, y, 460.0, h, ui::BLUE, ui::LCYAN);
+        ui::parchment(90.0, y, 460.0, h);
         for (i, l) in lines.iter().enumerate() {
-            ui::text_center(l, 320.0, y + 10.0 + i as f32 * 18.0, 14.0, ui::WHITE);
+            ui::text_center(l, 320.0, y + 10.0 + i as f32 * 18.0, 14.0, ui::BLUE);
         }
     }
 
     fn draw_coast(&self) {
-        let sand = Color::new(0.85, 0.75, 0.45, 1.0);
-        let green = Color::new(0.1, 0.55, 0.12, 1.0);
+        let sand = ui::BROWN;
+        let green = ui::GREEN;
         let off = self.to_screen(Vec2::ZERO);
         for &(x, y, w, h) in &LAND {
             ui::rect(off.x + x - 4.0, off.y + y - 4.0, w + 8.0, h + 8.0, sand);
@@ -853,7 +876,10 @@ impl NavalBattle {
             let p = vec2(wx, wy);
             if in_land(p, -6.0) {
                 let s = self.to_screen(p);
-                draw_circle(s.x, s.y, 4.0, Color::new(0.05, 0.42, 0.08, 1.0));
+                // Grass tufts in the style of the original's coastlines.
+                let c = if i % 3 == 0 { ui::YELLOW } else { ui::LGREEN };
+                draw_line(s.x - 3.0, s.y + 2.0, s.x, s.y - 2.0, 2.0, c);
+                draw_line(s.x, s.y - 2.0, s.x + 4.0, s.y + 2.0, 2.0, c);
             }
         }
         // Town houses at the bay head
@@ -875,15 +901,11 @@ impl NavalBattle {
         for i in 0..6 {
             ui::rect(q.x + 3.0 + i as f32 * 14.0, q.y + 6.0, 3.0, 4.0, Color::new(0.4, 0.2, 0.0, 1.0));
         }
-        if ui::blink() && self.phase == Phase::Fight {
-            ui::text_center("QUAY", q.x + 40.0, q.y + 12.0, 8.0, ui::YELLOW);
-        }
         if let Some(f) = &self.fort {
-            ui::text_center(&f.town, c.x - 30.0, c.y - 22.0, 10.0, ui::WHITE);
             // Fort: square with corner bastions
             let s = self.to_screen(FORT_POS);
-            let grey = Color::new(0.55, 0.55, 0.5, 1.0);
-            let dark = Color::new(0.35, 0.35, 0.32, 1.0);
+            let grey = ui::LGRAY;
+            let dark = ui::DGRAY;
             ui::rect(s.x - 15.0, s.y - 15.0, 30.0, 30.0, dark);
             ui::rect(s.x - 13.0, s.y - 13.0, 26.0, 26.0, grey);
             for (dx, dy) in [(-15.0, -15.0), (15.0, -15.0), (-15.0, 15.0), (15.0, 15.0)] {
@@ -894,8 +916,19 @@ impl NavalBattle {
             ui::rect(s.x - 0.5, s.y - 24.0, 1.5, 18.0, ui::BLACK);
             data::draw_flag(f.nation, s.x + 1.0, s.y - 24.0, 12.0, 8.0);
             if self.phase == Phase::Fight && self.player.pos.distance(FORT_POS) < FORT_RANGE + 60.0 {
-                draw_circle_lines(s.x, s.y, FORT_RANGE, 1.0, Color::new(1.0, 0.3, 0.3, 0.25));
+                draw_circle_lines(s.x, s.y, FORT_RANGE, 2.0, ui::RED);
             }
+        }
+    }
+
+    fn draw_coast_labels(&self) {
+        let q = self.to_screen(vec2(-40.0, -334.0));
+        if ui::blink() && self.phase == Phase::Fight {
+            ui::text_center("QUAY", q.x + 40.0, q.y + 12.0, 8.0, ui::YELLOW);
+        }
+        if let Some(f) = &self.fort {
+            let c = self.to_screen(vec2(28.0, -385.0));
+            ui::text_shadow(&f.town, c.x - 30.0 - ui::measure(&f.town, 10.0) / 2.0, c.y - 22.0, 10.0, ui::WHITE);
         }
     }
 
@@ -912,8 +945,10 @@ impl NavalBattle {
         let h = ship.heading + sink * 0.6;
         let pts = [vec2(l * 0.5, 0.0), vec2(l * 0.22, w * 0.5), vec2(-l * 0.5, w * 0.42), vec2(-l * 0.5, -w * 0.42), vec2(l * 0.22, -w * 0.5)];
         let pts: Vec<Vec2> = pts.iter().map(|p| s + rot(*p, h)).collect();
-        let hull_col = Color::new(0.45 * (1.0 - 0.5 * sink), 0.25 * (1.0 - 0.5 * sink), 0.08, alpha);
-        let deck_col = Color::new(0.7, 0.5, 0.25, alpha);
+        let _ = alpha;
+        let alpha = 1.0;
+        let hull_col = ui::BLACK;
+        let deck_col = if sink > 0.5 { ui::DGRAY } else { ui::RED };
         let center = s + rot(vec2(-l * 0.1, 0.0), h);
         for i in 0..pts.len() {
             draw_triangle(center, pts[i], pts[(i + 1) % pts.len()], hull_col);
@@ -933,7 +968,7 @@ impl NavalBattle {
             let rel = wrap(self.setup.wind_dir - h);
             rel.clamp(-1.0, 1.0) * 0.5
         };
-        let sail_col = Color::new(0.95, 0.95, 0.9, alpha);
+        let sail_col = ui::WHITE;
         let sail_len = if ship.full_sail { w * 1.6 } else { w * 1.1 };
         for m in 0..masts {
             let fx = if masts == 1 { 0.05 } else { 0.3 - 0.6 * m as f32 / (masts - 1) as f32 };
@@ -966,36 +1001,50 @@ impl NavalBattle {
 
     fn draw_wind(&self) {
         let c = vec2(604.0, 34.0);
-        draw_circle(c.x, c.y, 22.0, Color::new(0.0, 0.0, 0.3, 0.7));
-        draw_circle_lines(c.x, c.y, 22.0, 1.0, ui::LCYAN);
+        ui::rect(c.x - 26.0, c.y - 26.0, 52.0, 64.0, ui::BLACK);
+        ui::rect(c.x - 25.0, c.y - 25.0, 50.0, 62.0, ui::LGRAY);
+        ui::frame(c.x - 23.0, c.y - 23.0, 46.0, 58.0, ui::BLUE, 1.0);
         let d = dir(self.setup.wind_dir);
         let tail = c - d * 15.0;
         let head = c + d * 15.0;
-        draw_line(tail.x, tail.y, head.x, head.y, 2.0, ui::WHITE);
-        draw_triangle(head + d * 3.0, head + rot(d, 2.5) * 7.0, head + rot(d, -2.5) * 7.0, ui::WHITE);
-        ui::text_center("Wind", c.x, c.y + 24.0, 9.0, ui::LCYAN);
+        draw_line(tail.x, tail.y, head.x, head.y, 2.0, ui::BLUE);
+        draw_triangle(head + d * 3.0, head + rot(d, 2.5) * 7.0, head + rot(d, -2.5) * 7.0, ui::BLUE);
+        ui::text_center("Wind", c.x, c.y + 22.0, 9.0, ui::BLACK);
+    }
+
+    /// Compass point the wind blows from, as the original's status line had it.
+    fn wind_from(&self) -> &'static str {
+        let a = wrap(self.setup.wind_dir + PI);
+        let i = ((a / (PI / 4.0)).round() as i32).rem_euclid(8);
+        ["E", "SE", "S", "SW", "W", "NW", "N", "NE"][i as usize]
     }
 
     fn draw_status(&self) {
-        ui::panel(0.0, BAR_Y, ui::W, ui::H - BAR_Y, ui::BLACK, ui::BROWN);
+        ui::rect(0.0, BAR_Y, ui::W, ui::H - BAR_Y, ui::BLUE);
+        ui::rect(2.0, BAR_Y + 2.0, ui::W - 4.0, ui::H - BAR_Y - 4.0, ui::LGRAY);
+        let head = format!(" Winds from the {} ", self.wind_from());
+        let hw = ui::measure(&head, 10.0);
+        ui::rect(320.0 - hw / 2.0 - 4.0, BAR_Y - 12.0, hw + 8.0, 14.0, ui::BLUE);
+        ui::rect(320.0 - hw / 2.0 - 2.0, BAR_Y - 10.0, hw + 4.0, 12.0, ui::LGRAY);
+        ui::text_center(&head, 320.0, BAR_Y - 9.0, 10.0, ui::RED);
         let p = &self.player;
-        ui::text(&format!("{} ({})", p.name, p.kind.name()), 8.0, BAR_Y + 5.0, 10.0, ui::LCYAN);
-        ui::text(&format!("Crew {}  Guns {}  Hull {}%", p.crew, p.guns, p.hull.max(0.0).round() as i32), 8.0, BAR_Y + 19.0, 10.0, ui::WHITE);
+        ui::text(&format!("{} ({})", p.name, p.kind.name()), 12.0, BAR_Y + 5.0, 10.0, ui::BLACK);
+        ui::text(&format!("{} guns, {} men, hull {}%", p.guns, p.crew, p.hull.max(0.0).round() as i32), 12.0, BAR_Y + 18.0, 10.0, ui::BLUE);
         let (rs, rc) = if p.guns == 0 {
             ("No guns", ui::DGRAY)
         } else if p.reload <= 0.0 {
-            ("Guns ready", ui::LGREEN)
+            ("Guns ready", ui::GREEN)
         } else {
-            ("Reloading", ui::LRED)
+            ("Reloading", ui::RED)
         };
-        ui::text(rs, 230.0, BAR_Y + 5.0, 10.0, rc);
-        ui::text(if p.full_sail { "Full sail" } else { "Battle sail" }, 230.0, BAR_Y + 19.0, 10.0, ui::LGRAY);
+        ui::text(rs, 236.0, BAR_Y + 5.0, 10.0, rc);
+        ui::text(if p.full_sail { "Full sails" } else { "Battle sails" }, 236.0, BAR_Y + 18.0, 10.0, ui::BLUE);
         if let Some(e) = &self.enemy {
-            ui::text_right(&format!("{} ({}) {}", e.name, e.kind.name(), e.nation.adj()), 632.0, BAR_Y + 5.0, 10.0, e.nation.color());
-            ui::text_right(&format!("Crew {}  Guns {}  Hull {}%", e.crew, e.guns, e.hull.max(0.0).round() as i32), 632.0, BAR_Y + 19.0, 10.0, ui::WHITE);
+            ui::text_right(&format!("{} ({}) {}", e.name, e.kind.name(), e.nation.adj()), 628.0, BAR_Y + 5.0, 10.0, ui::BLACK);
+            ui::text_right(&format!("{} guns, {} men, hull {}%", e.guns, e.crew, e.hull.max(0.0).round() as i32), 628.0, BAR_Y + 18.0, 10.0, ui::BLUE);
         } else if let Some(f) = &self.fort {
-            ui::text_right(&format!("Fort of {} ({})", f.town, f.nation.adj()), 632.0, BAR_Y + 5.0, 10.0, f.nation.color());
-            ui::text_right(&format!("Guns {}  Soldiers {}", f.guns, f.soldiers), 632.0, BAR_Y + 19.0, 10.0, ui::WHITE);
+            ui::text_right(&format!("Fort of {} ({})", f.town, f.nation.adj()), 628.0, BAR_Y + 5.0, 10.0, ui::BLACK);
+            ui::text_right(&format!("{} guns, {} soldiers", f.guns, f.soldiers), 628.0, BAR_Y + 18.0, 10.0, ui::BLUE);
         }
     }
 }
